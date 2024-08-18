@@ -1,33 +1,37 @@
-use std::net::{SocketAddr, UdpSocket};
+use std::net::SocketAddr;
 use std::io::{Error, ErrorKind};
+use std::time::Duration;
+use crate::comm::UdpClient;
+
+pub mod comm;
 
 fn main() -> std::io::Result<()> {
-    // Create a UDP socket
-    let socket: UdpSocket = UdpSocket::bind("0.0.0.0:0")?;
 
-    // Server address to ping
-    let server_addr: SocketAddr = match "127.0.0.1:8080".parse::<SocketAddr>() {
+    let client_addr: SocketAddr = match "0.0.0.0:0".parse() {
         Ok(addr) => addr,
-        Err(e) =>  {
-            return Err(Error::new(ErrorKind::InvalidInput, e))
+        Err(e) => {
+            eprintln!("Failed to parse address: {}", e);
+            return Err(Error::new(ErrorKind::InvalidInput, e));
         }
     };
 
-    // Message to send
-    let message: &str = "Ping";
+    let timeout: Duration = Duration::from_millis(100);
+    let max_retries: u32 = 3;
+    let client: UdpClient = UdpClient::new(client_addr, timeout, max_retries)?;
 
-    // Send the message to the server
-    socket.send_to(message.as_bytes(), server_addr)?;
+    let server_addr: SocketAddr = match "127.0.0.1:8080".parse() {
+        Ok(addr) => addr,
+        Err(e) => {
+            eprintln!("Failed to parse address: {}", e);
+            return Err(Error::new(ErrorKind::InvalidInput, e));
+        }
+    };
 
-    // buf to store the response
-    let mut buf: [u8; 1024] = [0; 1024];
+    let message: &[u8] = b"Hello, world!";
+    let mut buffer: [u8; 1024] = [0; 1024];
 
-    // Receive the response from the server
-    let (size, _) = socket.recv_from(&mut buf)?;
-
-    // Print the response
-    let response: std::borrow::Cow<str> = String::from_utf8_lossy(&buf[..size]);
-    println!("Response from server: {}", response);
+    let (size, addr) = client.send_and_recv(message, server_addr, &mut buffer)?;
+    println!("Received {} bytes from {}", size, addr);
 
     Ok(())
 }

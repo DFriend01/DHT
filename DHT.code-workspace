@@ -50,6 +50,10 @@
             "commandCenter.border": "#e7e7e799"
         },
 
+        "[rust]": {
+            "editor.rulers": [80]
+        },
+
         // IDE Settings for Rust
         "files.readonlyInclude": {
             "/.cargo/registry/src//*.rs": true,
@@ -58,6 +62,9 @@
 
         // Extension Settings
         "rust-analyzer.checkOnSave": false,
+        "rust-analyzer.linkedProjects": [
+            "dht/Cargo.toml"
+        ],
 
         // Path Intellisense
         "typescript.suggest.paths": false,

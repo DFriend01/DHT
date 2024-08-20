@@ -2,6 +2,8 @@ use std::io::{Result, Error, ErrorKind};
 use std::net::{SocketAddr, UdpSocket};
 use std::time::Duration;
 
+pub mod protos;
+
 const TIMEOUT_MULTIPLIER: u32 = 2;
 
 pub struct UdpClient {

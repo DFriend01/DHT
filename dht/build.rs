@@ -10,9 +10,7 @@ fn main() {
     Codegen::new()
         .protoc()
         .includes(&["proto"])
-        .input("proto/udp_message.proto")
-        .input("proto/request.proto")
-        .input("proto/reply.proto")
+        .input("proto/api.proto")
         .out_dir(CARGO_OUT_DIR)
         .run_from_script();
 }

@@ -1,6 +1,0 @@
-syntax = "proto3";
-
-message Reply {
-    uint32 error_code = 1;
-    optional bytes value = 2;
-}

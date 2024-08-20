@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+message Request {
+    uint32 operation = 1;
+    optional bytes key = 2;
+    optional bytes value = 3;
+}

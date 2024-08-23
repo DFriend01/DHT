@@ -6,31 +6,22 @@ pub mod protos;
 
 const TIMEOUT_MULTIPLIER: u32 = 2;
 
-pub struct UdpClient {
+pub struct UdpSender {
     socket: UdpSocket,
     timeout: Duration,
     max_retries: u32,
 }
 
-impl UdpClient {
+impl UdpSender {
     pub fn new(socket_addr: SocketAddr, timeout: Duration, max_retries: u32) -> Result<Self> {
         let socket: UdpSocket = match UdpSocket::bind(socket_addr) {
             Ok(socket) => socket,
             Err(e) => return Err(e),
         };
-        Ok(UdpClient {socket, timeout, max_retries})
+        Ok(UdpSender {socket, timeout, max_retries})
     }
 
-    pub fn send(&self, message: &[u8], server_addr: SocketAddr) -> Result<usize> {
-        self.socket.send_to(message, server_addr)
-    }
-
-    pub fn recv(&self, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
-        self.socket.set_read_timeout(Some(self.timeout))?;
-        self.socket.recv_from(buf)
-    }
-
-    pub fn send_and_recv(&self, message: &[u8], server_addr: SocketAddr, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
+    pub fn send(&self, message: &[u8], server_addr: SocketAddr, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
         self.socket.set_read_timeout(Some(self.timeout))?;
         self.do_send_and_recv(message, server_addr, buf)
     }
@@ -43,7 +34,9 @@ impl UdpClient {
             match self.socket.send_to(message, server_addr) {
                 Ok(_size) => {
                     match self.socket.recv_from(buf) {
-                        Ok((size, addr)) => return Ok((size, addr)),
+                        Ok((size, addr)) => {
+                            return Ok((size, addr))
+                        },
                         Err(e) => {
                             let timeout = timeout.checked_mul(TIMEOUT_MULTIPLIER).unwrap();
                             if e.kind() == ErrorKind::TimedOut {
@@ -54,7 +47,9 @@ impl UdpClient {
                         }
                     }
                 },
-                Err(e) => return Err(e),
+                Err(e) => {
+                    return Err(e)
+                },
             }
         }
 

@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 use std::io::{Error, ErrorKind};
 use std::time::Duration;
-use crate::comm::UdpSender;
+use crate::comm::UdpInterface;
 
 pub mod comm;
 
@@ -15,9 +15,11 @@ fn main() -> std::io::Result<()> {
         }
     };
 
+    println!("Bound to address: {}", client_addr);
+
     let timeout: Duration = Duration::from_millis(100);
     let max_retries: u32 = 3;
-    let client: UdpSender = UdpSender::new(client_addr, timeout, max_retries)?;
+    let client: UdpInterface = UdpInterface::new(client_addr, timeout, max_retries)?;
 
     let server_addr: SocketAddr = match "127.0.0.1:8080".parse() {
         Ok(addr) => addr,
@@ -30,7 +32,7 @@ fn main() -> std::io::Result<()> {
     let message: &[u8] = b"Hello, world!";
     let mut buffer: [u8; 1024] = [0; 1024];
 
-    let (size, addr) = client.send(message, server_addr, &mut buffer)?;
+    let (size, addr) = client.send_and_recv(message, server_addr, &mut buffer)?;
     println!("Received {} bytes from {}", size, addr);
 
     Ok(())

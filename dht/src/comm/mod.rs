@@ -1,3 +1,4 @@
+use core::option::Option;
 use std::io::{Result, Error, ErrorKind};
 use std::net::{SocketAddr, UdpSocket};
 use std::time::Duration;
@@ -6,22 +7,31 @@ pub mod protos;
 
 const TIMEOUT_MULTIPLIER: u32 = 2;
 
-pub struct UdpSender {
+pub struct UdpInterface {
     socket: UdpSocket,
     timeout: Duration,
     max_retries: u32,
 }
 
-impl UdpSender {
+impl UdpInterface {
     pub fn new(socket_addr: SocketAddr, timeout: Duration, max_retries: u32) -> Result<Self> {
         let socket: UdpSocket = match UdpSocket::bind(socket_addr) {
             Ok(socket) => socket,
             Err(e) => return Err(e),
         };
-        Ok(UdpSender {socket, timeout, max_retries})
+        Ok(UdpInterface {socket, timeout, max_retries})
     }
 
-    pub fn send(&self, message: &[u8], server_addr: SocketAddr, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
+    pub fn send(&self, message: &[u8], server_addr: SocketAddr) -> Result<usize> {
+        self.socket.send_to(message, server_addr)
+    }
+
+    pub fn listen(&self, buf: &mut [u8], listening_timeout: Option<Duration>) -> Result<(usize, SocketAddr)> {
+        self.socket.set_read_timeout(listening_timeout)?;
+        self.socket.recv_from(buf)
+    }
+
+    pub fn send_and_recv(&self, message: &[u8], server_addr: SocketAddr, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
         self.socket.set_read_timeout(Some(self.timeout))?;
         self.do_send_and_recv(message, server_addr, buf)
     }

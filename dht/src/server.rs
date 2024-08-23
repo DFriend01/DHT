@@ -15,9 +15,15 @@ fn main() -> Result<()> {
         }
     };
 
-    let timeout: Duration = Duration::from_millis(100);
+    let timeout: Option<Duration> = Some(Duration::from_millis(100));
+    let listener_timeout: Option<Duration> = None;
     let max_retries: u32 = 3;
-    let udp_interface: UdpInterface = match UdpInterface::new(server_addr, timeout, max_retries) {
+    let udp_interface: UdpInterface = match UdpInterface::new(
+        server_addr,
+        timeout,
+        listener_timeout,
+        max_retries
+    ) {
         Ok(receiver) => receiver,
         Err(e) => {
             eprintln!("UdpInterface failed to bind to {}", SERVER_ADDR_STR);
@@ -27,7 +33,7 @@ fn main() -> Result<()> {
 
     loop {
         let mut buffer: [u8; 1024] = [0; 1024];
-        let (size, addr) = udp_interface.listen(&mut buffer, None)?;
+        let (size, addr) = udp_interface.listen(&mut buffer)?;
 
         println!("Received {} bytes from {}", size, addr);
         let _ = udp_interface.send(&buffer, addr);

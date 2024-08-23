@@ -9,17 +9,17 @@ const TIMEOUT_MULTIPLIER: u32 = 2;
 
 pub struct UdpInterface {
     socket: UdpSocket,
-    timeout: Duration,
+    send_recv_timeout: Duration,
     max_retries: u32,
 }
 
 impl UdpInterface {
-    pub fn new(socket_addr: SocketAddr, timeout: Duration, max_retries: u32) -> Result<Self> {
+    pub fn new(socket_addr: SocketAddr, send_recv_timeout: Duration, max_retries: u32) -> Result<Self> {
         let socket: UdpSocket = match UdpSocket::bind(socket_addr) {
             Ok(socket) => socket,
             Err(e) => return Err(e),
         };
-        Ok(UdpInterface {socket, timeout, max_retries})
+        Ok(UdpInterface {socket, send_recv_timeout, max_retries})
     }
 
     pub fn send(&self, message: &[u8], server_addr: SocketAddr) -> Result<usize> {
@@ -32,13 +32,13 @@ impl UdpInterface {
     }
 
     pub fn send_and_recv(&self, message: &[u8], server_addr: SocketAddr, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
-        self.socket.set_read_timeout(Some(self.timeout))?;
+        self.socket.set_read_timeout(Some(self.send_recv_timeout))?;
         self.do_send_and_recv(message, server_addr, buf)
     }
 
     fn do_send_and_recv(&self, message: &[u8], server_addr: SocketAddr, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
         let max_attempted_sends: u32 = self.max_retries + 1;
-        let timeout: Duration = self.timeout;
+        let timeout: Duration = self.send_recv_timeout;
 
         for _ in 0..max_attempted_sends {
             match self.socket.send_to(message, server_addr) {

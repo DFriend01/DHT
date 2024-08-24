@@ -2,12 +2,61 @@ use core::option::Option;
 use std::io::{Result, Error, ErrorKind};
 use std::net::{SocketAddr, UdpSocket};
 use std::time::Duration;
+use protobuf::Message;
 
-pub mod protos;
+use crate::comm::protogen::api::UDPMessage;
 
+pub mod proto;
+pub mod protogen;
+
+const SEND_RECV_TIMEOUT: Duration = Duration::from_millis(100);
+const LISTENING_TIMEOUT: Duration = Duration::from_millis(1000);
+const MAX_RETRIES: u32 = 3;
 const TIMEOUT_MULTIPLIER: u32 = 2;
 
-pub struct UdpInterface {
+pub struct ProtoInterface {
+    udp_interface: UdpInterface
+}
+
+impl ProtoInterface {
+    pub fn new(socket_addr: SocketAddr) -> Result<Self> {
+
+        let udp_interface: UdpInterface = UdpInterface::new(
+            socket_addr,
+            Some(SEND_RECV_TIMEOUT),
+            Some(LISTENING_TIMEOUT),
+            MAX_RETRIES
+        )?;
+        Ok(ProtoInterface {udp_interface})
+    }
+
+    pub fn send(&self, message: UDPMessage, server_addr: SocketAddr) -> Result<usize> {
+        let msg_bytes: Vec<u8> = Message::write_to_bytes(&message)?;
+        self.udp_interface.send(msg_bytes.as_slice(), server_addr)
+    }
+
+    pub fn listen(&self) -> Result<(UDPMessage, SocketAddr)> {
+        let mut buf: [u8; 1024] = [0; 1024];
+        let (_size, sender_addr) = self.udp_interface.listen(&mut buf)?;
+        let message: UDPMessage = Message::parse_from_bytes(&buf)?;
+        match proto::validate_checksum(&message) {
+            Ok(_) => Ok((message, sender_addr)),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn send_and_recv(&self, message: &[u8], server_addr: SocketAddr) -> Result<(UDPMessage, SocketAddr)> {
+        let mut buf: [u8; 1024] = [0; 1024];
+        let (_size, sender_addr) = self.udp_interface.send_and_recv(message, server_addr, &mut buf)?;
+        let message: UDPMessage = Message::parse_from_bytes(&buf)?;
+        match proto::validate_checksum(&message) {
+            Ok(_) => Ok((message, sender_addr)),
+            Err(e) => Err(e),
+        }
+    }
+}
+
+struct UdpInterface {
     socket: UdpSocket,
     send_recv_timeout: Option<Duration>,
     listening_timeout: Option<Duration>,

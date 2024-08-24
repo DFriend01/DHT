@@ -12,8 +12,12 @@ pub fn calculate_checksum(message: &UDPMessage) -> u64 {
     digest.finalize() as u64
 }
 
-pub fn is_checksum_valid(message: &UDPMessage) -> bool {
+pub fn validate_checksum(message: &UDPMessage) -> std::io::Result<()> {
     let checksum: u64 = message.checksum;
     let recalc_checksum: u64 = calculate_checksum(message);
-    checksum == recalc_checksum
+    if checksum == recalc_checksum {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Checksum mismatch"))
+    }
 }

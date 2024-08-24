@@ -1,7 +1,6 @@
 use std::io::{Result, Error, ErrorKind};
 use std::net::SocketAddr;
-use std::time::Duration;
-use crate::comm::UdpInterface;
+use comm::ProtoInterface;
 
 pub mod comm;
 
@@ -15,15 +14,7 @@ fn main() -> Result<()> {
         }
     };
 
-    let timeout: Option<Duration> = Some(Duration::from_millis(100));
-    let listener_timeout: Option<Duration> = None;
-    let max_retries: u32 = 3;
-    let udp_interface: UdpInterface = match UdpInterface::new(
-        server_addr,
-        timeout,
-        listener_timeout,
-        max_retries
-    ) {
+    let server: ProtoInterface = match ProtoInterface::new(server_addr) {
         Ok(receiver) => receiver,
         Err(e) => {
             eprintln!("UdpInterface failed to bind to {}", SERVER_ADDR_STR);
@@ -32,10 +23,15 @@ fn main() -> Result<()> {
     };
 
     loop {
-        let mut buffer: [u8; 1024] = [0; 1024];
-        let (size, addr) = udp_interface.listen(&mut buffer)?;
+        let (msg, addr) = match server.listen() {
+            Ok((msg, addr)) => (msg, addr),
+            Err(e) => {
+                eprintln!("Failed to receive message: {}", e);
+                continue;
+            }
+        };
 
-        println!("Received {} bytes from {}", size, addr);
-        let _ = udp_interface.send(&buffer, addr);
+        println!("Received bytes from {}", addr);
+        let _ = server.send(msg, addr);
     }
 }

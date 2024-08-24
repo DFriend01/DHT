@@ -45,9 +45,10 @@ impl ProtoInterface {
         }
     }
 
-    pub fn send_and_recv(&self, message: &[u8], server_addr: SocketAddr) -> Result<(UDPMessage, SocketAddr)> {
+    pub fn send_and_recv(&self, message: UDPMessage, server_addr: SocketAddr) -> Result<(UDPMessage, SocketAddr)> {
+        let msg_bytes: Vec<u8> = Message::write_to_bytes(&message)?;
         let mut buf: [u8; 1024] = [0; 1024];
-        let (_size, sender_addr) = self.udp_interface.send_and_recv(message, server_addr, &mut buf)?;
+        let (_size, sender_addr) = self.udp_interface.send_and_recv(&msg_bytes, server_addr, &mut buf)?;
         let message: UDPMessage = Message::parse_from_bytes(&buf)?;
         match proto::validate_checksum(&message) {
             Ok(_) => Ok((message, sender_addr)),

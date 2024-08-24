@@ -31,14 +31,17 @@ impl ProtoInterface {
     }
 
     pub fn send(&self, message: UDPMessage, server_addr: SocketAddr) -> Result<usize> {
-        let msg_bytes: Vec<u8> = Message::write_to_bytes(&message)?;
+        let msg_bytes: Vec<u8> = UDPMessage::write_to_bytes(&message)?;
         self.udp_interface.send(msg_bytes.as_slice(), server_addr)
     }
 
     pub fn listen(&self) -> Result<(UDPMessage, SocketAddr)> {
         let mut buf: [u8; 1024] = [0; 1024];
-        let (_size, sender_addr) = self.udp_interface.listen(&mut buf)?;
-        let message: UDPMessage = Message::parse_from_bytes(&buf)?;
+        let (size, sender_addr) = self.udp_interface.listen(&mut buf)?;
+
+        let recv_data: Vec<u8> = buf[0..size].to_vec();
+        let message: UDPMessage = UDPMessage::parse_from_bytes(recv_data.as_slice())?;
+
         match proto::validate_checksum(&message) {
             Ok(_) => Ok((message, sender_addr)),
             Err(e) => Err(e),
@@ -46,10 +49,13 @@ impl ProtoInterface {
     }
 
     pub fn send_and_recv(&self, message: UDPMessage, server_addr: SocketAddr) -> Result<(UDPMessage, SocketAddr)> {
-        let msg_bytes: Vec<u8> = Message::write_to_bytes(&message)?;
+        let msg_bytes: Vec<u8> = UDPMessage::write_to_bytes(&message)?;
         let mut buf: [u8; 1024] = [0; 1024];
-        let (_size, sender_addr) = self.udp_interface.send_and_recv(&msg_bytes, server_addr, &mut buf)?;
-        let message: UDPMessage = Message::parse_from_bytes(&buf)?;
+        let (size, sender_addr) = self.udp_interface.send_and_recv(&msg_bytes, server_addr, &mut buf)?;
+
+        let recv_data: Vec<u8> = buf[0..size].to_vec();
+        let message: UDPMessage = UDPMessage::parse_from_bytes(recv_data.as_slice())?;
+
         match proto::validate_checksum(&message) {
             Ok(_) => Ok((message, sender_addr)),
             Err(e) => Err(e),

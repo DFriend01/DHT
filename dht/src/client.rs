@@ -33,8 +33,8 @@ fn main() -> std::io::Result<()> {
     let payload: Vec<u8> = b"Hello, world!".to_vec();
     let checksum: u64 = proto::calculate_checksum(id.as_slice(), payload.as_slice());
     let mut message: UDPMessage = UDPMessage::new();
-    message.id = id.to_vec();
-    message.payload = payload.to_vec();
+    message.id = id;
+    message.payload = payload;
     message.checksum = checksum;
 
     let (size, addr) = client.send_and_recv(message, server_addr)?;

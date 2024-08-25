@@ -33,8 +33,9 @@ impl ProtoInterface {
         Ok(ProtoInterface {udp_interface, ip, port})
     }
 
-    pub fn send(&self, message: UDPMessage, server_addr: SocketAddr) -> Result<usize> {
-        let msg_bytes: Vec<u8> = UDPMessage::write_to_bytes(&message)?;
+    pub fn send(&self, message: impl Message, server_addr: SocketAddr) -> Result<usize> {
+        let udp_message: UDPMessage = proto::create_udp_message(message, self.ip, self.port)?;
+        let msg_bytes: Vec<u8> = UDPMessage::write_to_bytes(&udp_message)?;
         self.udp_interface.send(msg_bytes.as_slice(), server_addr)
     }
 
@@ -51,8 +52,9 @@ impl ProtoInterface {
         }
     }
 
-    pub fn send_and_recv(&self, message: UDPMessage, server_addr: SocketAddr) -> Result<(UDPMessage, SocketAddr)> {
-        let msg_bytes: Vec<u8> = UDPMessage::write_to_bytes(&message)?;
+    pub fn send_and_recv(&self, message: impl Message, server_addr: SocketAddr) -> Result<(UDPMessage, SocketAddr)> {
+        let udp_message: UDPMessage = proto::create_udp_message(message, self.ip, self.port)?;
+        let msg_bytes: Vec<u8> = UDPMessage::write_to_bytes(&udp_message)?;
         let mut buf: [u8; 1024] = [0; 1024];
         let (size, sender_addr) = self.udp_interface.send_and_recv(&msg_bytes, server_addr, &mut buf)?;
 

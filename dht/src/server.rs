@@ -2,6 +2,8 @@ use std::io::{Result, Error, ErrorKind};
 use std::net::SocketAddr;
 use comm::ProtoInterface;
 
+// use crate::comm::protogen::api::{UDPMessage, Request, Reply};
+
 pub mod comm;
 
 fn main() -> Result<()> {
@@ -17,7 +19,6 @@ fn main() -> Result<()> {
     let server: ProtoInterface = match ProtoInterface::new(server_addr) {
         Ok(receiver) => receiver,
         Err(e) => {
-            eprintln!("UdpInterface failed to bind to {}", SERVER_ADDR_STR);
             return Err(e);
         }
     };

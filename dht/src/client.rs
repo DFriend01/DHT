@@ -1,9 +1,8 @@
 use std::net::SocketAddr;
 use std::io::{Error, ErrorKind};
 
-use crate::comm::proto;
 use crate::comm::ProtoInterface;
-use crate::comm::protogen::api::UDPMessage;
+use crate::comm::protogen::api::Request;
 
 pub mod comm;
 
@@ -29,16 +28,13 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    let id: Vec<u8> = b"wqerwer".to_vec();
-    let payload: Vec<u8> = b"Hello, world!".to_vec();
-    let checksum: u64 = proto::calculate_checksum(id.as_slice(), payload.as_slice());
-    let mut message: UDPMessage = UDPMessage::new();
-    message.id = id;
-    message.payload = payload;
-    message.checksum = checksum;
+    let mut request: Request = Request::new();
+    request.operation = 1;
+    request.key = Some(b"key".to_vec());
+    request.value = Some(b"value".to_vec());
 
-    let (size, addr) = client.send_and_recv(message, server_addr)?;
-    println!("Received {} bytes from {}", size, addr);
+    let (_reply, addr) = client.send_and_recv(request, server_addr)?;
+    println!("Received bytes from {}", addr);
 
     Ok(())
 }

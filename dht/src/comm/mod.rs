@@ -4,7 +4,8 @@ use std::net::{SocketAddr, IpAddr, UdpSocket};
 use std::time::Duration;
 use protobuf::Message;
 
-use crate::comm::protogen::api::UDPMessage;
+use crate::comm::proto::parse_message;
+use crate::comm::protogen::api::{UDPMessage};
 
 pub mod proto;
 pub mod protogen;
@@ -44,7 +45,7 @@ impl ProtoInterface {
         let (size, sender_addr) = self.udp_interface.listen(&mut buf)?;
 
         let recv_data: Vec<u8> = buf[0..size].to_vec();
-        let message: UDPMessage = UDPMessage::parse_from_bytes(recv_data.as_slice())?;
+        let message: UDPMessage = parse_message(recv_data)?;
 
         match proto::validate_checksum(&message) {
             Ok(_) => Ok((message, sender_addr)),
@@ -59,7 +60,7 @@ impl ProtoInterface {
         let (size, sender_addr) = self.udp_interface.send_and_recv(&msg_bytes, server_addr, &mut buf)?;
 
         let recv_data: Vec<u8> = buf[0..size].to_vec();
-        let message: UDPMessage = UDPMessage::parse_from_bytes(recv_data.as_slice())?;
+        let message: UDPMessage = parse_message(recv_data)?;
 
         match proto::validate_checksum(&message) {
             Ok(_) => Ok((message, sender_addr)),

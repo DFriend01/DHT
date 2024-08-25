@@ -3,10 +3,9 @@
 use std::io::Result;
 use std::net::SocketAddr;
 use std::collections::HashMap;
-use protobuf::Message;
 
 use crate::comm::ProtoInterface;
-use crate::comm::proto::{Operation, Status};
+use crate::comm::proto::{Operation, Status, extract_request};
 use crate::comm::protogen::api::{UDPMessage, Request, Reply};
 
 pub struct Node {
@@ -30,7 +29,7 @@ impl Node {
                     continue;
                 }
             };
-            
+
             let reply = self.handle_message(msg)?;
 
             match self.proto_interface.send(reply, sender_addr) {
@@ -43,7 +42,7 @@ impl Node {
     }
 
     fn handle_message(&mut self, msg: UDPMessage) -> Result<Reply> {
-        let request: Request = Request::parse_from_bytes(msg.payload.as_slice())?;
+        let request: Request = extract_request(msg)?;
 
         if let Ok(Operation::Shutdown) = request.operation.try_into() {
             std::process::exit(0);

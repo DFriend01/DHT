@@ -6,7 +6,7 @@ use crc::{Crc, CRC_32_CKSUM};
 use protobuf::Message;
 use rand;
 
-use crate::comm::protogen::api::UDPMessage;
+use crate::comm::protogen::api::{UDPMessage, Request, Reply};
 
 const NUM_RAND_BYTES: usize = 2;
 
@@ -70,6 +70,18 @@ pub fn create_udp_message(message: impl Message, ip: IpAddr, port: u16) -> Resul
     udp_message.payload = Message::write_to_bytes(&message)?;
     udp_message.checksum = calculate_checksum(&udp_message.id, &udp_message.payload);
     Ok(udp_message)
+}
+
+pub fn parse_message(message_bytes: Vec<u8>) -> Result<UDPMessage> {
+    Ok(UDPMessage::parse_from_bytes(message_bytes.as_slice())?)
+}
+
+pub fn extract_request(udp_message: UDPMessage) -> Result<Request> {
+    Ok(Request::parse_from_bytes(udp_message.payload.as_slice())?)
+}
+
+pub fn extract_reply(udp_message: UDPMessage) -> Result<Reply> {
+    Ok(Reply::parse_from_bytes(udp_message.payload.as_slice())?)
 }
 
 pub fn calculate_checksum(id: &[u8], payload: &[u8]) -> u64 {

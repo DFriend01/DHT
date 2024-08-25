@@ -1,8 +1,9 @@
 #![allow(unreachable_code)]
 
-use std::io::Result;
+use std::io::{Result, Error, ErrorKind};
 use std::net::SocketAddr;
 use std::collections::HashMap;
+use log;
 
 use crate::comm::ProtoInterface;
 use crate::comm::proto::{Operation, Status, extract_request};
@@ -11,16 +12,19 @@ use crate::comm::protogen::api::{UDPMessage, Request, Reply};
 pub struct Node {
     proto_interface: ProtoInterface,
     data_store: HashMap<Vec<u8>, Vec<u8>>,
+    id: u32,
 }
 
 impl Node {
-    pub fn new(socket_addr: SocketAddr) -> Result<Self> {
+    pub fn new(socket_addr: SocketAddr, id: u32) -> Result<Self> {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
-        Ok(Node {proto_interface, data_store})
+        Ok(Node {proto_interface, data_store, id})
     }
 
     pub fn run(&mut self) -> Result<()> {
+        log::info!("Server N{} starting up...", self.id);
+
         loop {
             let (msg, sender_addr) = match self.proto_interface.listen() {
                 Ok((msg, addr)) => (msg, addr),
@@ -38,7 +42,8 @@ impl Node {
             }
         };
 
-        panic!("Node run loop exited unexpectedly");
+        log::error!("Node run loop exited unexpectedly");
+        Err(Error::new(ErrorKind::Other, "Node run loop exited unexpectedly"))
     }
 
     fn handle_message(&mut self, msg: UDPMessage) -> Result<Reply> {

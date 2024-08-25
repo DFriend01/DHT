@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use log::{LevelFilter, info, warn};
+use log;
 
 use crate::logging::server::init_logger;
 use crate::server::data::Node;
@@ -18,7 +18,10 @@ fn main() {
         }
     };
 
-    let mut server: Node = match Node::new(server_addr) {
+    let id: u32 = 0;
+    init_logger(log::LevelFilter::Debug, id);
+
+    let mut server: Node = match Node::new(server_addr, id) {
         Ok(node) => node,
         Err(e) => {
             eprintln!("Failed to create server: {}", e);
@@ -26,9 +29,7 @@ fn main() {
         }
     };
 
-    init_logger(LevelFilter::Debug, 0);
-    info!("Server started at {}", server_addr);
-    warn!("This is a warning message");
+    log::info!("Server N{} bound to address {}", id, server_addr);
 
     let _ = server.run();
 }

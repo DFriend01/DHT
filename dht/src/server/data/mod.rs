@@ -59,18 +59,20 @@ impl Node {
             Ok(Operation::Delete) => self.handle_delete(request),
             Ok(Operation::Wipe) => self.handle_wipe(),
             Ok(Operation::Ping) => self.handle_ping(),
-            _ => self.handle_undefined_operation()
+            _ => self.handle_undefined_operation(request.operation),
         };
 
         Ok(reply)
     }
 
     fn handle_put(&mut self, request: Request) -> Reply {
+
         let mut reply: Reply = Reply::new();
 
         let key: Vec<u8> = match request.key {
             Some(key) => key,
             None => {
+                log::debug!("PUT request MissingKey");
                 reply.status = Status::MissingKey as u32;
                 return reply;
             }
@@ -79,10 +81,13 @@ impl Node {
         let value: Vec<u8> = match request.value {
             Some(value) => value,
             None => {
+                log::debug!("PUT request MissingValue");
                 reply.status = Status::MissingValue as u32;
                 return reply;
             }
         };
+
+        log::debug!("PUT request Success (key size: {}, value size: {})", key.len(), value.len());
 
         self.data_store.insert(key, value);
         reply.status = Status::Success as u32;
@@ -95,19 +100,26 @@ impl Node {
         let key: Vec<u8> = match request.key {
             Some(key) => key,
             None => {
+                log::debug!("GET request MissingKey");
                 reply.status = Status::MissingKey as u32;
                 return reply;
             }
         };
 
-        match self.data_store.get(&key) {
+        let value: Vec<u8> = match self.data_store.get(&key) {
             Some(value) => {
                 reply.status = Status::Success as u32;
-                reply.value = Some(value.to_vec());
+                value.to_vec()
             },
-            None => reply.status = Status::KeyNotFound as u32,
+            None => {
+                log::debug!("GET request KeyNotFound");
+                reply.status = Status::KeyNotFound as u32;
+                return reply
+            },
         };
 
+        log::debug!("GET request Success (key size: {}, value size: {})", key.len(), value.len());
+        reply.value = Some(value);
         reply
     }
 
@@ -117,6 +129,7 @@ impl Node {
         let key: Vec<u8> = match request.key {
             Some(key) => key,
             None => {
+                log::debug!("DELETE request MissingKey");
                 reply.status = Status::MissingKey as u32;
                 return reply;
             }
@@ -127,8 +140,13 @@ impl Node {
                 reply.status = Status::Success as u32;
                 reply.value = Some(value);
             },
-            None => reply.status = Status::KeyNotFound as u32,
+            None => reply.status = {
+                log::debug!("DELETE request KeyNotFound");
+                Status::KeyNotFound as u32
+            },
         };
+
+        log::debug!("DELETE request Success (key size: {})", key.len());
 
         reply
     }
@@ -137,18 +155,23 @@ impl Node {
         let mut reply: Reply = Reply::new();
         self.data_store = HashMap::new();
         reply.status = Status::Success as u32;
+
+        log::debug!("WIPE request Success");
+
         reply
     }
 
     fn handle_ping(&self) -> Reply {
         let mut reply: Reply = Reply::new();
         reply.status = Status::Success as u32;
+        log::debug!("PING request Success");
         reply
     }
 
-    fn handle_undefined_operation(&self) -> Reply {
+    fn handle_undefined_operation(&self, bad_error_code: u32) -> Reply {
         let mut reply: Reply = Reply::new();
         reply.status = Status::UndefinedOperation as u32;
+        log::debug!("Undefined operation with code {}", bad_error_code);
         reply
     }
 }

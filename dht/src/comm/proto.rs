@@ -1,4 +1,5 @@
 use std::io::{Result, Error, ErrorKind};
+use std::convert::TryFrom;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::net::IpAddr;
 use crc::{Crc, CRC_32_CKSUM};
@@ -8,6 +9,57 @@ use rand;
 use crate::comm::protogen::api::UDPMessage;
 
 const NUM_RAND_BYTES: usize = 2;
+
+pub enum Operation {
+    Put = 0,
+    Get = 1,
+    Delete = 2,
+    Wipe = 3,
+    Ping = 4,
+    Shutdown = 5,
+}
+
+impl TryFrom<u32> for Operation {
+    type Error = Error;
+
+    fn try_from(value: u32) -> Result<Self> {
+        match value {
+            0 => Ok(Operation::Put),
+            1 => Ok(Operation::Get),
+            2 => Ok(Operation::Delete),
+            3 => Ok(Operation::Wipe),
+            4 => Ok(Operation::Ping),
+            5 => Ok(Operation::Shutdown),
+            _ => Err(Error::new(ErrorKind::InvalidData, "Invalid operation")),
+        }
+    }
+}
+
+pub enum Status {
+    Success = 0,
+    InvalidKey = 1,
+    MissingKey = 2,
+    InvalidValue = 3,
+    MissingValue = 4,
+    KeyNotFound = 5,
+    UndefinedOperation = 6,
+    InternalError = 7,
+}
+
+impl From<Status> for u32 {
+    fn from(status: Status) -> u32 {
+        match status {
+            Status::Success => 0,
+            Status::InvalidKey => 1,
+            Status::MissingKey => 2,
+            Status::InvalidValue => 3,
+            Status::MissingValue => 4,
+            Status::KeyNotFound => 5,
+            Status::UndefinedOperation => 6,
+            Status::InternalError => 7,
+        }
+    }
+}
 
 pub fn create_udp_message(message: impl Message, ip: IpAddr, port: u16) -> Result<UDPMessage> {
     let mut udp_message: UDPMessage = UDPMessage::new();

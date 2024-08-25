@@ -1,6 +1,6 @@
 use core::option::Option;
 use std::io::{Result, Error, ErrorKind};
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{SocketAddr, IpAddr, UdpSocket};
 use std::time::Duration;
 use protobuf::Message;
 
@@ -15,19 +15,22 @@ const MAX_RETRIES: u32 = 3;
 const TIMEOUT_MULTIPLIER: u32 = 2;
 
 pub struct ProtoInterface {
-    udp_interface: UdpInterface
+    udp_interface: UdpInterface,
+    ip: IpAddr,
+    port: u16,
 }
 
 impl ProtoInterface {
     pub fn new(socket_addr: SocketAddr) -> Result<Self> {
-
         let udp_interface: UdpInterface = UdpInterface::new(
             socket_addr,
             Some(SEND_RECV_TIMEOUT),
             Some(LISTENING_TIMEOUT),
             MAX_RETRIES
         )?;
-        Ok(ProtoInterface {udp_interface})
+        let ip = socket_addr.ip();
+        let port = socket_addr.port();
+        Ok(ProtoInterface {udp_interface, ip, port})
     }
 
     pub fn send(&self, message: UDPMessage, server_addr: SocketAddr) -> Result<usize> {

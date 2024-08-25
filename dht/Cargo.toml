@@ -14,7 +14,3 @@ rand = "0.8"
 [[bin]]
 name = "client"
 path = "src/client.rs"
-
-[[bin]]
-name = "server"
-path = "src/server.rs"

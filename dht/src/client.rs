@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 use std::io::{Error, ErrorKind};
 
+use comm::proto::Operation;
+
 use crate::comm::ProtoInterface;
 use crate::comm::protogen::api::Request;
 
@@ -29,9 +31,7 @@ fn main() -> std::io::Result<()> {
     };
 
     let mut request: Request = Request::new();
-    request.operation = 1;
-    request.key = Some(b"key".to_vec());
-    request.value = Some(b"value".to_vec());
+    request.operation = Operation::Ping as u32;
 
     let (_reply, addr) = client.send_and_recv(request, server_addr)?;
     println!("Received bytes from {}", addr);

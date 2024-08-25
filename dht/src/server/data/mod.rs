@@ -50,6 +50,7 @@ impl Node {
         let request: Request = extract_request(msg)?;
 
         if let Ok(Operation::Shutdown) = request.operation.try_into() {
+            log::warn!("Received shutdown request, stopping server...");
             std::process::exit(0);
         }
 

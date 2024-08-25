@@ -46,17 +46,20 @@ pub enum Status {
     InternalError = 7,
 }
 
-impl From<Status> for u32 {
-    fn from(status: Status) -> u32 {
-        match status {
-            Status::Success => 0,
-            Status::InvalidKey => 1,
-            Status::MissingKey => 2,
-            Status::InvalidValue => 3,
-            Status::MissingValue => 4,
-            Status::KeyNotFound => 5,
-            Status::UndefinedOperation => 6,
-            Status::InternalError => 7,
+impl TryFrom<u32> for Status {
+    type Error = Error;
+
+    fn try_from(value: u32) -> Result<Self> {
+        match value {
+            0 => Ok(Status::Success),
+            1 => Ok(Status::InvalidKey),
+            2 => Ok(Status::MissingKey),
+            3 => Ok(Status::InvalidValue),
+            4 => Ok(Status::MissingValue),
+            5 => Ok(Status::KeyNotFound),
+            6 => Ok(Status::UndefinedOperation),
+            7 => Ok(Status::InternalError),
+            _ => Err(Error::new(ErrorKind::InvalidData, "Invalid status")),
         }
     }
 }

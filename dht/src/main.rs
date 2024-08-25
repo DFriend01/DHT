@@ -1,8 +1,11 @@
 use std::net::SocketAddr;
+use log::{LevelFilter, info, warn};
 
+use crate::logging::server::init_logger;
 use crate::server::data::Node;
 
 pub mod comm;
+pub mod logging;
 pub mod server;
 
 fn main() {
@@ -22,6 +25,10 @@ fn main() {
             return;
         }
     };
+
+    init_logger(LevelFilter::Debug, 0);
+    info!("Server started at {}", server_addr);
+    warn!("This is a warning message");
 
     let _ = server.run();
 }

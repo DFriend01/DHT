@@ -9,6 +9,7 @@ protobuf-codegen = "3.5.1"
 [dependencies]
 crc = "3.2.1"
 protobuf = "3.5.1"
+rand = "0.8"
 
 [[bin]]
 name = "client"

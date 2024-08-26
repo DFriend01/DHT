@@ -4,14 +4,19 @@ use std::io::{Result, Error, ErrorKind};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 use log;
+use mini_moka::unsync::Cache;
+use protobuf::Message;
 
 use crate::comm::ProtoInterface;
 use crate::comm::proto::{Operation, Status, extract_request};
 use crate::comm::protogen::api::{UDPMessage, Request, Reply};
 
+const MAX_CACHE_SIZE: u64 = 1000;
+
 pub struct Node {
     proto_interface: ProtoInterface,
     data_store: HashMap<Vec<u8>, Vec<u8>>,
+    request_cache: Cache<Vec<u8>, Vec<u8>>,
     id: u32,
 }
 
@@ -19,7 +24,12 @@ impl Node {
     pub fn new(socket_addr: SocketAddr, id: u32) -> Result<Self> {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
-        Ok(Node {proto_interface, data_store, id})
+        let request_cache: Cache<Vec<u8>, Vec<u8>> = Cache::builder()
+            .max_capacity(MAX_CACHE_SIZE)
+            .time_to_idle(std::time::Duration::from_secs(1))
+            .weigher(|k: &Vec<u8>, v: &Vec<u8>| (k.len() + v.len()) as u32)
+            .build();
+        Ok(Node {proto_interface, data_store, request_cache, id})
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -28,17 +38,21 @@ impl Node {
         loop {
             let (msg, sender_addr) = match self.proto_interface.listen() {
                 Ok((msg, addr)) => (msg, addr),
-                Err(e) => {
-                    eprintln!("Failed to receive message: {}", e);
+                Err(_) => {
                     continue;
                 }
             };
 
-            let reply = self.handle_message(msg)?;
+            let reply: Reply = match self.get_reply(msg) {
+                Ok(reply) => reply,
+                Err(_) => {
+                    continue;
+                }
+            };
 
             match self.proto_interface.send(reply, sender_addr) {
                 Ok(_) => (),
-                Err(e) => eprintln!("Failed to send reply: {}", e),
+                Err(e) => log::debug!("Failed to send reply: {}", e),
             }
         };
 
@@ -46,7 +60,50 @@ impl Node {
         Err(Error::new(ErrorKind::Other, "Node run loop exited unexpectedly"))
     }
 
-    fn handle_message(&mut self, msg: UDPMessage) -> Result<Reply> {
+    fn get_reply(&mut self, msg: UDPMessage) -> Result<Reply> {
+        let reply: Reply = match self.get_reply_from_cache(&msg) {
+            Ok(cached_reply) => cached_reply,
+            Err(_) => {
+                let reply: Reply = match self.handle_message(&msg) {
+                    Ok(reply) => reply,
+                    Err(e) => {
+                        log::error!("Failed to handle message: {}", e);
+                        self.handle_internal_error()
+                    }
+                };
+
+                match reply.write_to_bytes() {
+                    Ok(reply_bytes) => {
+                        self.request_cache.insert(msg.id, reply_bytes.to_vec());
+                    },
+                    Err(e) => {
+                        log::error!("Failed to serialize reply: {}", e);
+                        return Err(Error::new(ErrorKind::InvalidData, "Failed to serialize reply"));
+                    }
+                }
+
+                reply
+            }
+        };
+
+        Ok(reply)
+    }
+
+    fn get_reply_from_cache(&mut self, msg: &UDPMessage) -> Result<Reply> {
+        match self.request_cache.get(&msg.id) {
+            Some(reply_bytes) => {
+                log::debug!("Cache hit for message Id of size {}", msg.id.len());
+                let reply: Reply = Reply::parse_from_bytes(reply_bytes.as_slice())?;
+                Ok(reply)
+            },
+            None => {
+                log::debug!("Cache miss for message Id of size {}", msg.id.len());
+                Err(Error::new(ErrorKind::NotFound, "Cache miss"))
+            },
+        }
+    }
+
+    fn handle_message(&mut self, msg: &UDPMessage) -> Result<Reply> {
         let request: Request = extract_request(msg)?;
 
         if let Ok(Operation::Shutdown) = request.operation.try_into() {
@@ -173,6 +230,13 @@ impl Node {
         let mut reply: Reply = Reply::new();
         reply.status = Status::UndefinedOperation as u32;
         log::debug!("Undefined operation with code {}", bad_error_code);
+        reply
+    }
+
+    fn handle_internal_error(&self) -> Reply {
+        let mut reply: Reply = Reply::new();
+        reply.status = Status::InternalError as u32;
+        log::debug!("Internal error");
         reply
     }
 }

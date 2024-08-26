@@ -76,11 +76,11 @@ pub fn parse_message(message_bytes: Vec<u8>) -> Result<UDPMessage> {
     Ok(UDPMessage::parse_from_bytes(message_bytes.as_slice())?)
 }
 
-pub fn extract_request(udp_message: UDPMessage) -> Result<Request> {
+pub fn extract_request(udp_message: &UDPMessage) -> Result<Request> {
     Ok(Request::parse_from_bytes(udp_message.payload.as_slice())?)
 }
 
-pub fn extract_reply(udp_message: UDPMessage) -> Result<Reply> {
+pub fn extract_reply(udp_message: &UDPMessage) -> Result<Reply> {
     Ok(Reply::parse_from_bytes(udp_message.payload.as_slice())?)
 }
 

@@ -44,7 +44,7 @@ fn main() {
         }
     };
 
-    let server_addr_str = format!("0.0.0.0:{}", args.port);
+    let server_addr_str = format!("127.0.0.1:{}", args.port);
     let server_addr: SocketAddr = match server_addr_str.parse() {
         Ok(addr) => addr,
         Err(e) => {

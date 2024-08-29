@@ -25,3 +25,4 @@ dht/src/comm/protogen
 
 # Log files
 **/log
+servers.txt

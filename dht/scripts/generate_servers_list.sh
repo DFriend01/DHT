@@ -46,5 +46,5 @@ for port in "${AVAILABLE_PORTS[@]}"; do
     OUT+="${ADDRESS}\n"
 done
 
-echo -en `trim_newlines $OUT` > $OUTPUT_FILE
+echo -en $OUT > $OUTPUT_FILE
 echo "Found $N available ports and wrote them to `realpath $OUTPUT_FILE`"

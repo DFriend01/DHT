@@ -15,14 +15,16 @@ pub mod server;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Port to listen on
+    #[arg(short, long, default_value = "8080")]
     port: u16,
 
-    /// Log level
-    #[arg(default_value = "info")]
-    log_level: String,
-
     /// Server ID
+    #[arg(short, long, default_value = "0")]
     server_id: u32,
+
+    /// Log level
+    #[arg(short, long, default_value = "info")]
+    log_level: String,
 }
 
 fn main() {

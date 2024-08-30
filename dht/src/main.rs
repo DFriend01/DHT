@@ -25,6 +25,10 @@ struct Args {
     /// Log level
     #[arg(short, long, default_value = "info")]
     log_level: String,
+
+    /// Max memory in megabytes
+    #[arg(short, long, default_value = "32")]
+    max_memory: u32,
 }
 
 fn main() {
@@ -56,7 +60,7 @@ fn main() {
     log::set_max_level(log_level);
     init_logger(log_level, args.server_id);
 
-    let mut server: Node = match Node::new(server_addr, args.server_id) {
+    let mut server: Node = match Node::new(server_addr, args.server_id, args.max_memory) {
         Ok(node) => node,
         Err(e) => {
             eprintln!("Failed to create server: {}", e);

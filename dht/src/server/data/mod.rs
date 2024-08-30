@@ -18,10 +18,11 @@ pub struct Node {
     data_store: HashMap<Vec<u8>, Vec<u8>>,
     request_cache: Cache<Vec<u8>, Vec<u8>>,
     id: u32,
+    max_mem: u32,
 }
 
 impl Node {
-    pub fn new(socket_addr: SocketAddr, id: u32) -> Result<Self> {
+    pub fn new(socket_addr: SocketAddr, id: u32, max_mem_mb: u32) -> Result<Self> {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
         let request_cache: Cache<Vec<u8>, Vec<u8>> = Cache::builder()
@@ -29,7 +30,9 @@ impl Node {
             .time_to_idle(std::time::Duration::from_secs(1))
             .weigher(|k: &Vec<u8>, v: &Vec<u8>| (k.len() + v.len()) as u32)
             .build();
-        Ok(Node {proto_interface, data_store, request_cache, id})
+
+        let max_mem_bytes: u32 = max_mem_mb * 1e6 as u32;
+        Ok(Node {proto_interface, data_store, request_cache, id, max_mem: max_mem_bytes})
     }
 
     pub fn run(&mut self) -> Result<()> {

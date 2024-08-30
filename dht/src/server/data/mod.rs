@@ -11,28 +11,36 @@ use crate::comm::ProtoInterface;
 use crate::comm::proto::{Operation, Status, extract_request};
 use crate::comm::protogen::api::{UDPMessage, Request, Reply};
 
-const MAX_CACHE_SIZE: u64 = 1000;
+const MAX_CACHE_CAPACITY_PERCENT: f64 = 0.1;
 
 pub struct Node {
     proto_interface: ProtoInterface,
     data_store: HashMap<Vec<u8>, Vec<u8>>,
     request_cache: Cache<Vec<u8>, Vec<u8>>,
     id: u32,
-    max_mem: u32,
+    max_mem: u64,
+    data_store_mem_usage: u64,
 }
 
 impl Node {
     pub fn new(socket_addr: SocketAddr, id: u32, max_mem_mb: u32) -> Result<Self> {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
+        let max_mem_bytes: u64 = (max_mem_mb as u64) * 1024 * 1024;
         let request_cache: Cache<Vec<u8>, Vec<u8>> = Cache::builder()
-            .max_capacity(MAX_CACHE_SIZE)
+            .max_capacity((MAX_CACHE_CAPACITY_PERCENT * max_mem_bytes as f64) as u64)
             .time_to_idle(std::time::Duration::from_secs(1))
             .weigher(|k: &Vec<u8>, v: &Vec<u8>| (k.len() + v.len()) as u32)
             .build();
 
-        let max_mem_bytes: u32 = max_mem_mb * 1e6 as u32;
-        Ok(Node {proto_interface, data_store, request_cache, id, max_mem: max_mem_bytes})
+        Ok(Node {
+            proto_interface,
+            data_store,
+            request_cache,
+            id,
+            max_mem: max_mem_bytes,
+            data_store_mem_usage: 0
+        } )
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -75,14 +83,8 @@ impl Node {
                     }
                 };
 
-                match reply.write_to_bytes() {
-                    Ok(reply_bytes) => {
-                        self.request_cache.insert(msg.id, reply_bytes.to_vec());
-                    },
-                    Err(e) => {
-                        log::error!("Failed to serialize reply: {}", e);
-                        return Err(Error::new(ErrorKind::InvalidData, "Failed to serialize reply"));
-                    }
+                if reply.status != (Status::OutOfMemory as u32) {
+                    self.cache_reply(&msg.id, &reply)?;
                 }
 
                 reply
@@ -149,9 +151,10 @@ impl Node {
         };
 
         log::debug!("PUT request Success (key size: {}, value size: {})", key.len(), value.len());
-
+        self.data_store_mem_usage += (key.len() as u64) + (value.len() as u64);
         self.data_store.insert(key, value);
         reply.status = Status::Success as u32;
+
         reply
     }
 
@@ -175,7 +178,7 @@ impl Node {
             None => {
                 log::debug!("GET request KeyNotFound");
                 reply.status = Status::KeyNotFound as u32;
-                return reply
+                return reply;
             },
         };
 
@@ -196,29 +199,27 @@ impl Node {
             }
         };
 
-        match self.data_store.remove(&key) {
-            Some(value) => {
-                reply.status = Status::Success as u32;
-                reply.value = Some(value);
-            },
-            None => reply.status = {
+        let value: Vec<u8> = match self.data_store.remove(&key) {
+            Some(value) => value,
+            None => {
                 log::debug!("DELETE request KeyNotFound");
-                Status::KeyNotFound as u32
+                reply.status = Status::KeyNotFound as u32;
+                return reply;
             },
         };
+        self.data_store_mem_usage -= (key.len() as u64) + (value.len() as u64);
 
         log::debug!("DELETE request Success (key size: {})", key.len());
-
+        reply.status = Status::Success as u32;
         reply
     }
 
     fn handle_wipe(&mut self) -> Reply {
         let mut reply: Reply = Reply::new();
         self.data_store = HashMap::new();
+        self.data_store_mem_usage = 0;
         reply.status = Status::Success as u32;
-
         log::debug!("WIPE request Success");
-
         reply
     }
 
@@ -241,5 +242,26 @@ impl Node {
         reply.status = Status::InternalError as u32;
         log::debug!("Internal error");
         reply
+    }
+
+    fn cache_reply(&mut self, msg_id: &Vec<u8>, reply: &Reply) -> Result<()> {
+        match reply.write_to_bytes() {
+            Ok(reply_bytes) => {
+                let reply_size: u64 = reply_bytes.len() as u64;
+                if self.get_current_memory_usage() + reply_size <= self.max_mem {
+                    self.request_cache.insert(msg_id.to_vec(), reply_bytes);
+                }
+            },
+            Err(e) => {
+                log::error!("Failed to serialize reply: {}", e);
+                return Err(Error::new(ErrorKind::InvalidData, "Failed to serialize reply"));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn get_current_memory_usage(&self) -> u64 {
+        self.data_store_mem_usage + self.request_cache.weighted_size()
     }
 }

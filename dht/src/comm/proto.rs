@@ -42,8 +42,9 @@ pub enum Status {
     InvalidValue = 3,
     MissingValue = 4,
     KeyNotFound = 5,
-    UndefinedOperation = 6,
-    InternalError = 7,
+    OutOfMemory = 6,
+    UndefinedOperation = 7,
+    InternalError = 8,
 }
 
 impl TryFrom<u32> for Status {
@@ -57,8 +58,9 @@ impl TryFrom<u32> for Status {
             3 => Ok(Status::InvalidValue),
             4 => Ok(Status::MissingValue),
             5 => Ok(Status::KeyNotFound),
-            6 => Ok(Status::UndefinedOperation),
-            7 => Ok(Status::InternalError),
+            6 => Ok(Status::OutOfMemory),
+            7 => Ok(Status::UndefinedOperation),
+            8 => Ok(Status::InternalError),
             _ => Err(Error::new(ErrorKind::InvalidData, "Invalid status")),
         }
     }

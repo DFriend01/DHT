@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+message UDPMessage {
+    bytes id = 1;
+    bytes payload = 2;
+    fixed64 checksum = 3;
+}
+
+message Request {
+    uint32 operation = 1;
+    optional bytes key = 2;
+    optional bytes value = 3;
+}
+
+message Reply {
+    uint32 status = 1;
+    optional bytes value = 2;
+}

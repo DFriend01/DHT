@@ -137,3 +137,50 @@ impl UdpInterface {
         Err(Error::new(ErrorKind::TimedOut, "Timed out"))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use protogen::api::Request;
+
+    use super::*;
+    use crate::comm::proto::Operation;
+
+    fn create_client_and_server() -> (ProtoInterface, SocketAddr, ProtoInterface, SocketAddr) {
+        let server_addr: SocketAddr = UdpSocket::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap();
+        let client_addr: SocketAddr = UdpSocket::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap();
+        let server_interface: ProtoInterface = ProtoInterface::new(server_addr).unwrap();
+        let client_interface: ProtoInterface = ProtoInterface::new(client_addr).unwrap();
+
+        (client_interface, client_addr, server_interface, server_addr)
+    }
+
+    #[test]
+    fn test_proto_interface_receive() {
+        let (client_interface, client_addr, server_interface, server_addr) = create_client_and_server();
+
+        let mut sent_request: Request = Request::new();
+        sent_request.operation = Operation::Ping as u32;
+        client_interface.send(sent_request.clone(), server_addr).unwrap();
+
+        let (received_message, sender_socket) = server_interface.listen().unwrap();
+        let received_request = Request::parse_from_bytes(&received_message.payload).unwrap();
+
+        assert_eq!(received_request, sent_request);
+        assert_eq!(sender_socket, client_addr);
+    }
+
+    #[test]
+    fn test_proto_interface_failed_receive() {
+        let (client_interface, _, _, server_addr) = create_client_and_server();
+        let mut sent_request: Request = Request::new();
+        sent_request.operation = Operation::Ping as u32;
+        let result = client_interface.send_and_recv(sent_request.clone(), server_addr);
+        assert!(result.is_err());
+    }
+}

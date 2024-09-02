@@ -1,8 +1,8 @@
-use log;
-use log::LevelFilter;
+use log::{self, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::config::{Appender, Config, Root};
+use rand::{self, Rng, RngCore};
 use std::io::{Error, ErrorKind, Result};
 use std::net::{SocketAddr, UdpSocket};
 
@@ -80,4 +80,27 @@ pub fn ping_servers(server_addrs: Vec<SocketAddr>, should_panic_if_fail: bool) -
         }
     }
     Ok(())
+}
+
+pub fn get_proto_interface() -> Result<ProtoInterface> {
+    let client_addr: SocketAddr = UdpSocket::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap();
+    Ok(ProtoInterface::new(client_addr)?)
+}
+
+pub fn get_rand_bytes(min_len: usize, max_len: usize) -> Vec<u8> {
+    let len = rand::thread_rng().gen_range(min_len..max_len);
+    let mut bytes = vec![0; len];
+    let _ = rand::thread_rng().try_fill_bytes(&mut bytes);
+    bytes
+}
+
+pub fn get_rand_key() -> Vec<u8> {
+    get_rand_bytes(8, 32)
+}
+
+pub fn get_rand_value() -> Vec<u8> {
+    get_rand_bytes(8, 1024)
 }

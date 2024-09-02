@@ -1,3 +1,5 @@
+use ctor::ctor;
+use lazy_static::lazy_static;
 use std::path::Path;
 use std::net::SocketAddr;
 
@@ -5,10 +7,18 @@ use dht::util::read_socket_addresses;
 
 mod common;
 
+const SERVER_FILE: &str = "servers.txt";
+lazy_static! {
+    static ref SERVER_ADDR: SocketAddr = read_socket_addresses(Path::new(SERVER_FILE)).unwrap()[0];
+}
+
+#[ctor]
+fn init() {
+    common::init_logger();
+}
+
 #[test]
 fn ping() {
-    let server_file_path: &Path = Path::new("servers.txt");
-    let server_addr: SocketAddr = read_socket_addresses(server_file_path).unwrap()[0];
-    let result = common::ping_servers(vec![server_addr], false);
+    let result = common::ping_servers(vec![*SERVER_ADDR], false);
     assert!(result.is_ok());
 }

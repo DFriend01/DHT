@@ -22,4 +22,8 @@ ${SCRIPT_DIR}/generate_servers_list.sh 1 servers/single_server.txt
 start_servers $(realpath ${SCRIPT_DIR}/../servers/single_server.txt)
 sleep 1
 
+# Run tests
 cargo test -- --show-output --test-threads 1
+
+# Stop servers after tests if still running
+kill $(ps | grep dht | awk '{print $1}')

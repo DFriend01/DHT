@@ -28,22 +28,16 @@ pub fn init_logger() {
     let _handle = log4rs::init_config(config).unwrap();
 }
 
-pub fn ping_servers(server_addrs: Vec<SocketAddr>, should_panic_if_fail: bool) -> Result<()> {
+pub fn get_proto_interface() -> Result<ProtoInterface> {
     let client_addr: SocketAddr = UdpSocket::bind("127.0.0.1:0")
             .unwrap()
             .local_addr()
             .unwrap();
+    Ok(ProtoInterface::new(client_addr)?)
+}
 
-    let proto_interface = match ProtoInterface::new(client_addr) {
-        Ok(proto_interface) => proto_interface,
-        Err(e) => {
-            if should_panic_if_fail {
-                panic!("Failed to create ProtoInterface: {:?}", e);
-            } else {
-                return Err(e);
-            }
-        }
-    };
+pub fn ping_servers(server_addrs: Vec<SocketAddr>, should_panic_if_fail: bool) -> Result<()> {
+    let proto_interface = get_proto_interface()?;
 
     for server_addr in server_addrs {
         log::info!("Pinging server at {}", server_addr);
@@ -82,12 +76,30 @@ pub fn ping_servers(server_addrs: Vec<SocketAddr>, should_panic_if_fail: bool) -
     Ok(())
 }
 
-pub fn get_proto_interface() -> Result<ProtoInterface> {
-    let client_addr: SocketAddr = UdpSocket::bind("127.0.0.1:0")
-            .unwrap()
-            .local_addr()
-            .unwrap();
-    Ok(ProtoInterface::new(client_addr)?)
+pub fn wipe_servers(server_addrs: Vec<SocketAddr>, wait_time_sec: u64) -> Result<()> {
+    let proto_interface = get_proto_interface()?;
+    let mut failed = false;
+
+    for server_addr in server_addrs {
+        log::info!("Wiping server at {}", server_addr);
+        let mut request: Request = Request::new();
+        request.operation = Operation::Wipe as u32;
+        let (reply_msg, _) = proto_interface.send_and_recv(request, server_addr)?;
+        let reply: Reply = extract_reply(&reply_msg)?;
+        if reply.status != Status::Success as u32 {
+            log::error!("Wipe failed for server at {} with status code {:?}", server_addr, reply.status);
+            failed = true;
+        }
+    }
+
+    log::info!("Waiting for {} seconds...", wait_time_sec);
+    std::thread::sleep(std::time::Duration::from_secs(wait_time_sec));
+
+    if failed {
+        Err(Error::new(ErrorKind::Other, "Wipe failed"))
+    } else {
+        Ok(())
+    }
 }
 
 pub fn get_rand_bytes(min_len: usize, max_len: usize) -> Vec<u8> {

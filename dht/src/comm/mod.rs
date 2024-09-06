@@ -1,4 +1,5 @@
 use core::option::Option;
+use log;
 use std::io::{Result, Error, ErrorKind};
 use std::net::{SocketAddr, IpAddr, UdpSocket};
 use std::time::Duration;
@@ -42,14 +43,23 @@ impl ProtoInterface {
 
     pub fn listen(&self) -> Result<(UDPMessage, SocketAddr)> {
         let mut buf: [u8; 1024] = [0; 1024];
-        let (size, sender_addr) = self.udp_interface.listen(&mut buf)?;
+        let (size, sender_addr) = match self.udp_interface.listen(&mut buf) {
+            Ok((size, sender_addr)) => (size, sender_addr),
+            Err(e) => {
+                log::trace!("Error listening: {}", e);
+                return Err(e);
+            }
+        };
 
         let recv_data: Vec<u8> = buf[0..size].to_vec();
         let message: UDPMessage = parse_message(recv_data)?;
 
         match proto::validate_checksum(&message) {
             Ok(_) => Ok((message, sender_addr)),
-            Err(e) => Err(e),
+            Err(e) => {
+                log::trace!("Error validating checksum: {}", e);
+                Err(e)
+            },
         }
     }
 

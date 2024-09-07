@@ -80,3 +80,28 @@ fn test04_Put_Get_Wipe_Get_KeyNotFound() {
         assert_eq!(status, Status::KeyNotFound as u32);
     }
 }
+
+#[test]
+fn test05_Put_Get_Delete_Get_KeyNotFound() {
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+
+    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    assert_eq!(status, Status::Success as u32);
+
+    let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
+    assert_eq!(status, Status::Success as u32);
+
+    let retrived_value: Vec<u8> = retrived_value_opt.ok_or("GET failed. No value present").unwrap();
+    assert_eq!(retrived_value, value);
+
+    let (deleted_value_opt, status) = common::delete_key_value(*SERVER_ADDR, &key).unwrap();
+    assert_eq!(status, Status::Success as u32);
+
+    let deleted_value: Vec<u8> = deleted_value_opt.ok_or("DELETE failed. No value present").unwrap();
+    assert_eq!(deleted_value, value);
+
+    let (_, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
+    assert_eq!(status, Status::KeyNotFound as u32);
+
+    let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
+}

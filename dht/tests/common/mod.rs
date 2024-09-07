@@ -115,9 +115,6 @@ pub fn put_rand_key_value(server_addr: SocketAddr) -> Result<(Vec<u8>, Vec<u8>, 
     let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, server_addr)?;
     let reply: Reply = extract_reply(&reply_msg)?;
     let status = reply.status;
-    if status != Status::Success as u32 {
-        return Err(Error::new(ErrorKind::Other, "PUT failed"));
-    }
 
     Ok((key, value, status))
 }
@@ -131,9 +128,6 @@ pub fn get_value(server_addr: SocketAddr, key: &Vec<u8>) -> Result<(Option<Vec<u
 
     let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, server_addr)?;
     let reply: Reply = extract_reply(&reply_msg)?;
-    if reply.status != Status::Success as u32 {
-        return Err(Error::new(ErrorKind::Other, "GET failed"));
-    }
 
     Ok((reply.value, reply.status))
 }
@@ -147,9 +141,6 @@ pub fn delete_key_value(server_addr: SocketAddr, key: &Vec<u8>) -> Result<(Optio
 
     let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, server_addr)?;
     let reply: Reply = extract_reply(&reply_msg)?;
-    if reply.status != Status::Success as u32 {
-        return Err(Error::new(ErrorKind::Other, "DELETE failed"));
-    }
 
     Ok((reply.value, reply.status))
 }

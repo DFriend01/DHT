@@ -7,10 +7,12 @@ function start_servers() {
     local SERVERS_COUNT=$(wc -l < $SERVERS_FILE)
     local SERVERS=($(cat $SERVERS_FILE))
 
+    echo "Starting ${SERVERS_COUNT} servers"
     for ((i=0; i<SERVERS_COUNT; i++)); do
         local SERVER=${SERVERS[$i]}
         local PORT=$(echo $SERVER | cut -d':' -f2)
         cargo run --bin dht -- -p $PORT -s $i 2>/dev/null 1>&2 &
+        echo "Started server on port ${PORT} with PID $!"
     done
 }
 

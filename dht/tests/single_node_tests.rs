@@ -54,7 +54,7 @@ fn test03_Get_KeyNotFound() {
 }
 
 #[test]
-fn test04_Put_Get_Wipe_Success() {
+fn test04_Put_Get_Wipe_Get_KeyNotFound() {
     const NUM_KEY_VALUE_PAIRS: usize = 10;
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 

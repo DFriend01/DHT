@@ -102,6 +102,58 @@ pub fn wipe_servers(server_addrs: Vec<SocketAddr>, wait_time_sec: u64) -> Result
     }
 }
 
+pub fn put_rand_key_value(server_addr: SocketAddr) -> Result<(Vec<u8>, Vec<u8>, u32)> {
+    let proto_interface = get_proto_interface()?;
+    let key: Vec<u8> = get_rand_key();
+    let value: Vec<u8> = get_rand_value();
+
+    let mut request: Request = Request::new();
+    request.operation = Operation::Put as u32;
+    request.key = Some(key.clone());
+    request.value = Some(value.clone());
+
+    let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, server_addr)?;
+    let reply: Reply = extract_reply(&reply_msg)?;
+    let status = reply.status;
+    if status != Status::Success as u32 {
+        return Err(Error::new(ErrorKind::Other, "PUT failed"));
+    }
+
+    Ok((key, value, status))
+}
+
+pub fn get_value(server_addr: SocketAddr, key: &Vec<u8>) -> Result<(Option<Vec<u8>>, u32)> {
+    let proto_interface = get_proto_interface()?;
+
+    let mut request: Request = Request::new();
+    request.operation = Operation::Get as u32;
+    request.key = Some(key.to_vec());
+
+    let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, server_addr)?;
+    let reply: Reply = extract_reply(&reply_msg)?;
+    if reply.status != Status::Success as u32 {
+        return Err(Error::new(ErrorKind::Other, "GET failed"));
+    }
+
+    Ok((reply.value, reply.status))
+}
+
+pub fn delete_key_value(server_addr: SocketAddr, key: &Vec<u8>) -> Result<(Option<Vec<u8>>, u32)> {
+    let proto_interface = get_proto_interface()?;
+
+    let mut request: Request = Request::new();
+    request.operation = Operation::Delete as u32;
+    request.key = Some(key.to_vec());
+
+    let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, server_addr)?;
+    let reply: Reply = extract_reply(&reply_msg)?;
+    if reply.status != Status::Success as u32 {
+        return Err(Error::new(ErrorKind::Other, "DELETE failed"));
+    }
+
+    Ok((reply.value, reply.status))
+}
+
 pub fn get_rand_bytes(min_len: usize, max_len: usize) -> Vec<u8> {
     let len = rand::thread_rng().gen_range(min_len..max_len);
     let mut bytes = vec![0; len];

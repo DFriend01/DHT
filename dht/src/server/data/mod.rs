@@ -242,7 +242,7 @@ impl Node {
 
         log::debug!("DELETE request Success (key size: {})", key.len());
         reply.status = Status::Success as u32;
-
+        reply.value = Some(value);
 
         log::trace!("Exiting handle_delete");
         reply

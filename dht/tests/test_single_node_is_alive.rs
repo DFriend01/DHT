@@ -6,8 +6,6 @@ use std::path::Path;
 use std::net::SocketAddr;
 
 use dht::util::read_socket_addresses;
-use dht::comm::proto::{extract_reply, Operation, Status};
-use dht::comm::protogen::api::{Request, Reply};
 
 mod common;
 

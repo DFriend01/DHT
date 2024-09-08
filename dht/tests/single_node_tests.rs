@@ -6,7 +6,8 @@ use std::path::Path;
 use std::net::SocketAddr;
 
 use dht::util::read_socket_addresses;
-use dht::comm::proto::Status;
+use dht::comm::proto::{extract_reply, Operation, Status};
+use dht::comm::protogen::api::{Request, Reply};
 
 mod common;
 
@@ -43,7 +44,48 @@ fn test02_Put_Get_Success() {
 }
 
 #[test]
-fn test03_Get_KeyNotFound() {
+fn test03_Put_MissingKey() {
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+    let key: Option<Vec<u8>> = None;
+    let value: Vec<u8> = common::get_rand_value();
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &key, &Some(value)).unwrap();
+    assert_eq!(status, Status::MissingKey as u32);
+
+    let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
+}
+
+#[test]
+fn test04_Put_MissingValue() {
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+    let key: Vec<u8> = common::get_rand_key();
+    let value: Option<Vec<u8>> = None;
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key), &value).unwrap();
+    assert_eq!(status, Status::MissingValue as u32);
+
+    let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
+}
+
+#[test]
+fn test05_Get_MissingKey() {
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+    let proto_interface = common::get_proto_interface().unwrap();
+    let key: Option<Vec<u8>> = None;
+
+    let mut request = Request::new();
+    request.operation = Operation::Get as u32;
+    request.key = key;
+
+    let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, *SERVER_ADDR).unwrap();
+    let reply: Reply = extract_reply(&reply_msg).unwrap();
+    assert_eq!(reply.status, Status::MissingKey as u32);
+
+    let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
+}
+
+#[test]
+fn test06_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let key: Vec<u8> = common::get_rand_key();
 
@@ -54,7 +96,24 @@ fn test03_Get_KeyNotFound() {
 }
 
 #[test]
-fn test04_Put_Get_Wipe_Get_KeyNotFound() {
+fn test07_Delete_MissingKey() {
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+    let proto_interface = common::get_proto_interface().unwrap();
+    let key: Option<Vec<u8>> = None;
+
+    let mut request = Request::new();
+    request.operation = Operation::Delete as u32;
+    request.key = key;
+
+    let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, *SERVER_ADDR).unwrap();
+    let reply: Reply = extract_reply(&reply_msg).unwrap();
+    assert_eq!(reply.status, Status::MissingKey as u32);
+
+    let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
+}
+
+#[test]
+fn test08_Put_Get_Wipe_Get_KeyNotFound() {
     const NUM_KEY_VALUE_PAIRS: usize = 10;
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
@@ -82,7 +141,7 @@ fn test04_Put_Get_Wipe_Get_KeyNotFound() {
 }
 
 #[test]
-fn test05_Put_Get_Delete_Get_KeyNotFound() {
+fn test09_Put_Get_Delete_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
     let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();

@@ -102,20 +102,24 @@ pub fn wipe_servers(server_addrs: Vec<SocketAddr>, wait_time_sec: u64) -> Result
     }
 }
 
-pub fn put_rand_key_value(server_addr: SocketAddr) -> Result<(Vec<u8>, Vec<u8>, u32)> {
+pub fn put_key_value(server_addr: SocketAddr, key: &Option<Vec<u8>>, value: &Option<Vec<u8>>) -> Result<u32> {
     let proto_interface = get_proto_interface()?;
-    let key: Vec<u8> = get_rand_key();
-    let value: Vec<u8> = get_rand_value();
 
     let mut request: Request = Request::new();
     request.operation = Operation::Put as u32;
-    request.key = Some(key.clone());
-    request.value = Some(value.clone());
+    request.key = key.clone();
+    request.value = value.clone();
 
     let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, server_addr)?;
     let reply: Reply = extract_reply(&reply_msg)?;
-    let status = reply.status;
 
+    Ok(reply.status)
+}
+
+pub fn put_rand_key_value(server_addr: SocketAddr) -> Result<(Vec<u8>, Vec<u8>, u32)> {
+    let key: Vec<u8> = get_rand_key();
+    let value: Vec<u8> = get_rand_value();
+    let status = put_key_value(server_addr, &Some(key.clone()), &Some(value.clone()))?;
     Ok((key, value, status))
 }
 

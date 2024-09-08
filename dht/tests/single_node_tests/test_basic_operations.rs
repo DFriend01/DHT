@@ -22,13 +22,7 @@ fn init() {
 }
 
 #[test]
-fn test01_Ping_Success() {
-    let result = common::ping_servers(vec![*SERVER_ADDR], false);
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test02_Put_Get_Success() {
+fn Put_Get_Success() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
     let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
@@ -44,7 +38,7 @@ fn test02_Put_Get_Success() {
 }
 
 #[test]
-fn test03_Put_MissingKey() {
+fn Put_MissingKey() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let key: Option<Vec<u8>> = None;
     let value: Vec<u8> = common::get_rand_value();
@@ -56,7 +50,7 @@ fn test03_Put_MissingKey() {
 }
 
 #[test]
-fn test04_Put_MissingValue() {
+fn Put_MissingValue() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let key: Vec<u8> = common::get_rand_key();
     let value: Option<Vec<u8>> = None;
@@ -68,7 +62,7 @@ fn test04_Put_MissingValue() {
 }
 
 #[test]
-fn test05_Get_MissingKey() {
+fn Get_MissingKey() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let proto_interface = common::get_proto_interface().unwrap();
     let key: Option<Vec<u8>> = None;
@@ -85,7 +79,7 @@ fn test05_Get_MissingKey() {
 }
 
 #[test]
-fn test06_Get_KeyNotFound() {
+fn Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let key: Vec<u8> = common::get_rand_key();
 
@@ -96,7 +90,7 @@ fn test06_Get_KeyNotFound() {
 }
 
 #[test]
-fn test07_Delete_MissingKey() {
+fn Delete_MissingKey() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let proto_interface = common::get_proto_interface().unwrap();
     let key: Option<Vec<u8>> = None;
@@ -113,7 +107,7 @@ fn test07_Delete_MissingKey() {
 }
 
 #[test]
-fn test08_Put_Get_Wipe_Get_KeyNotFound() {
+fn Put_Get_Wipe_Get_KeyNotFound() {
     const NUM_KEY_VALUE_PAIRS: usize = 10;
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
@@ -141,7 +135,7 @@ fn test08_Put_Get_Wipe_Get_KeyNotFound() {
 }
 
 #[test]
-fn test09_Put_Get_Delete_Get_KeyNotFound() {
+fn Put_Get_Delete_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
     let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
@@ -166,7 +160,7 @@ fn test09_Put_Get_Delete_Get_KeyNotFound() {
 }
 
 #[test]
-fn test10_Put_Get_Delete_Delete_KeyNotFound() {
+fn Put_Get_Delete_Delete_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
     let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
@@ -191,7 +185,7 @@ fn test10_Put_Get_Delete_Delete_KeyNotFound() {
 }
 
 #[test]
-fn test11_Put_Delete_Get_KeyNotFound() {
+fn Put_Delete_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
     let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();

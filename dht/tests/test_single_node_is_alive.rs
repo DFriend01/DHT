@@ -1,18 +1,8 @@
 #![allow(non_snake_case)]
 
-use ctor::ctor;
-use lazy_static::lazy_static;
-use std::path::Path;
-use std::net::SocketAddr;
-
-use dht::util::read_socket_addresses;
-
 mod common;
-
-const SERVER_FILE: &str = "servers/single_server.txt";
-lazy_static! {
-    static ref SERVER_ADDR: SocketAddr = read_socket_addresses(Path::new(SERVER_FILE)).unwrap()[0];
-}
+mod tests_prelude;
+use tests_prelude::*;
 
 #[ctor]
 fn init() {

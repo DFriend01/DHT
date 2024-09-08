@@ -1,7 +1,7 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-binary_path=$(realpath -m ${SCRIPT_DIR}/../target/debug/dht)
-server_pids=$(ps -aux | grep ${binary_path} | grep -v "grep" | awk '{print $2}')
+binary_name="dht"
+server_pids=$(sudo netstat -tunlp | tail -n +3 | awk '{print $6}' | grep ${binary_name} | cut -d '/' -f1)
 
 if [ -z "${server_pids}" ]; then
     echo "No servers running"

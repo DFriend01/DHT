@@ -24,7 +24,8 @@ AVAILABLE_PORTS=()
 # Function to check if a port is available
 is_port_available() {
     local port=$1
-    if ss -tuln | grep -q ":$port "; then
+    local used_ports=$(sudo netstat -tunlp | tail -n +3 | awk '{print $4}' | cut -d':' -f2)
+    if echo ${used_ports} | grep -q ${port}; then
         return 1
     else
         return 0

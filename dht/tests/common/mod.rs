@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use log::{self, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::encode::pattern::PatternEncoder;

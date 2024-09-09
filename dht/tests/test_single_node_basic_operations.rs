@@ -194,3 +194,18 @@ fn Put_Delete_Get_KeyNotFound() {
 
     let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
 }
+
+#[test]
+fn Undefined_Operation() {
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+    let proto_interface = common::get_proto_interface().unwrap();
+
+    let mut request = Request::new();
+    request.operation = u32::MAX;
+
+    let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, *SERVER_ADDR).unwrap();
+    let reply: Reply = extract_reply(&reply_msg).unwrap();
+    assert_eq!(reply.status, Status::UndefinedOperation as u32);
+
+    let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
+}

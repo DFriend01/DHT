@@ -20,6 +20,7 @@ pub struct Node {
     id: u32,
     max_mem: u64,
     data_store_mem_usage: u64,
+    should_keep_running: bool,
 }
 
 impl Node {
@@ -39,14 +40,15 @@ impl Node {
             request_cache,
             id,
             max_mem: max_mem_bytes,
-            data_store_mem_usage: 0
+            data_store_mem_usage: 0,
+            should_keep_running: true,
         } )
     }
 
     pub fn run(&mut self) -> Result<()> {
         log::info!("Server N{} starting up...", self.id);
 
-        loop {
+        while self.should_keep_running {
             let (msg, sender_addr) = match self.proto_interface.listen() {
                 Ok((msg, addr)) => {
                     log::trace!("Received message from {}", addr);
@@ -72,8 +74,13 @@ impl Node {
             }
         };
 
-        log::error!("Node run loop exited unexpectedly");
-        Err(Error::new(ErrorKind::Other, "Node run loop exited unexpectedly"))
+        if self.should_keep_running {
+            log::error!("Node run loop exited unexpectedly");
+            Err(Error::new(ErrorKind::Other, "Node run loop exited unexpectedly"))
+        } else {
+            log::info!("Server N{} shutting down...", self.id);
+            Ok(())
+        }
     }
 
     fn get_reply(&mut self, msg: UDPMessage) -> Result<Reply> {
@@ -125,18 +132,13 @@ impl Node {
         log::trace!("Entering handle_message");
 
         let request: Request = extract_request(msg)?;
-
-        if let Ok(Operation::Shutdown) = request.operation.try_into() {
-            log::warn!("Received shutdown request, stopping server...");
-            std::process::exit(0);
-        }
-
         let reply: Reply = match request.operation.try_into() {
             Ok(Operation::Put) => self.handle_put(request),
             Ok(Operation::Get) => self.handle_get(request),
             Ok(Operation::Delete) => self.handle_delete(request),
             Ok(Operation::Wipe) => self.handle_wipe(),
             Ok(Operation::Ping) => self.handle_ping(),
+            Ok(Operation::Shutdown) => self.handle_shutdown(),
             _ => self.handle_undefined_operation(request.operation),
         };
 
@@ -265,6 +267,16 @@ impl Node {
         reply.status = Status::Success as u32;
         log::debug!("PING request Success");
         log::trace!("Exiting handle_ping");
+        reply
+    }
+
+    fn handle_shutdown(&mut self) -> Reply {
+        log::trace!("Entering handle_shutdown");
+        let mut reply: Reply = Reply::new();
+        self.should_keep_running = false;
+        reply.status = Status::Success as u32;
+        log::debug!("SHUTDOWN request Success");
+        log::trace!("Exiting handle_shutdown");
         reply
     }
 

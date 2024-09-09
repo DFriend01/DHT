@@ -104,6 +104,32 @@ pub fn wipe_servers(server_addrs: Vec<SocketAddr>, wait_time_sec: u64) -> Result
     }
 }
 
+pub fn shutdown_servers(server_addrs: Vec<SocketAddr>, wait_time_sec: u64) -> Result<()> {
+    let proto_interface = get_proto_interface()?;
+    let mut failed = false;
+
+    for server_addr in server_addrs {
+        log::info!("Shutting down server at {}", server_addr);
+        let mut request: Request = Request::new();
+        request.operation = Operation::Shutdown as u32;
+        let (reply_msg, _) = proto_interface.send_and_recv(request, server_addr)?;
+        let reply: Reply = extract_reply(&reply_msg)?;
+        if reply.status != Status::Success as u32 {
+            log::error!("Shutdown failed for server at {} with status code {:?}", server_addr, reply.status);
+            failed = true;
+        }
+    }
+
+    log::info!("Waiting for {} seconds...", wait_time_sec);
+    std::thread::sleep(std::time::Duration::from_secs(wait_time_sec));
+
+    if failed {
+        Err(Error::new(ErrorKind::Other, "Shutdown failed"))
+    } else {
+        Ok(())
+    }
+}
+
 pub fn put_key_value(server_addr: SocketAddr, key: &Option<Vec<u8>>, value: &Option<Vec<u8>>) -> Result<u32> {
     let proto_interface = get_proto_interface()?;
 

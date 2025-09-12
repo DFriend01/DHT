@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use lazy_static::lazy_static;
 use log::{self, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
 use log4rs::encode::pattern::PatternEncoder;
@@ -11,6 +12,12 @@ use std::net::{SocketAddr, UdpSocket};
 use dht::comm::ProtoInterface;
 use dht::comm::proto::{extract_reply, Operation, Status};
 use dht::comm::protogen::api::{Request, Reply};
+
+lazy_static! {
+    static ref CLIENT_ADDR: SocketAddr = {
+        UdpSocket::bind("127.0.0.1:0").unwrap().local_addr().unwrap()
+    };
+}
 
 pub fn init_logger() {
     // Pattern
@@ -24,18 +31,14 @@ pub fn init_logger() {
     // Initialize the loggers
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .build(Root::builder().appender("stdout").build(LevelFilter::Info))
+        .build(Root::builder().appender("stdout").build(LevelFilter::Debug))
         .unwrap();
 
     let _handle = log4rs::init_config(config).unwrap();
 }
 
 pub fn get_proto_interface() -> Result<ProtoInterface> {
-    let client_addr: SocketAddr = UdpSocket::bind("127.0.0.1:0")
-            .unwrap()
-            .local_addr()
-            .unwrap();
-    Ok(ProtoInterface::new(client_addr)?)
+    Ok(ProtoInterface::new(*CLIENT_ADDR)?)
 }
 
 pub fn ping_servers(server_addrs: Vec<SocketAddr>, should_panic_if_fail: bool) -> Result<()> {
@@ -131,6 +134,8 @@ pub fn shutdown_servers(server_addrs: Vec<SocketAddr>, wait_time_sec: u64) -> Re
 }
 
 pub fn put_key_value(server_addr: SocketAddr, key: &Option<Vec<u8>>, value: &Option<Vec<u8>>) -> Result<u32> {
+
+    log::debug!("Getting the proto interface...");
     let proto_interface = get_proto_interface()?;
 
     let mut request: Request = Request::new();
@@ -138,6 +143,7 @@ pub fn put_key_value(server_addr: SocketAddr, key: &Option<Vec<u8>>, value: &Opt
     request.key = key.clone();
     request.value = value.clone();
 
+    log::debug!("Starting send and receive of PUT key request...");
     let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, server_addr)?;
     let reply: Reply = extract_reply(&reply_msg)?;
 

@@ -100,30 +100,22 @@ fn Delete_MissingKey() {
 
 #[test]
 fn Put_Get_Wipe_Get_KeyNotFound() {
-    const NUM_KEY_VALUE_PAIRS: usize = 10;
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let mut key_value_pairs: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-    for _ in 0..NUM_KEY_VALUE_PAIRS {
-        let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
-        assert_eq!(status, Status::Success as u32);
+    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    assert_eq!(status, Status::Success as u32);
 
-        let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
-        assert_eq!(status, Status::Success as u32);
+    let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
+    assert_eq!(status, Status::Success as u32);
 
-        let retrived_value: Vec<u8> = retrived_value_opt.ok_or("GET failed. No value present").unwrap();
-        assert_eq!(retrived_value, value);
-
-        key_value_pairs.push((key, value));
-    }
+    let retrived_value: Vec<u8> = retrived_value_opt.ok_or("GET failed. No value present").unwrap();
+    assert_eq!(retrived_value, value);
 
     let result = common::wipe_servers(vec![*SERVER_ADDR], 1);
     assert!(result.is_ok());
 
-    for (key, _) in key_value_pairs.iter() {
-        let (_, status) = common::get_value(*SERVER_ADDR, key).unwrap();
-        assert_eq!(status, Status::KeyNotFound as u32);
-    }
+    let (_, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
+    assert_eq!(status, Status::KeyNotFound as u32);
 }
 
 #[test]

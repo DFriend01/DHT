@@ -171,10 +171,16 @@ impl Node {
             }
         };
 
-        log::debug!("PUT request Success (key size: {}, value size: {})", key.len(), value.len());
-        self.data_store_mem_usage += (key.len() as u64) + (value.len() as u64);
-        self.data_store.insert(key, value);
-        reply.status = Status::Success as u32;
+        let key_value_mem_usage: u64 = (key.len() as u64) + (value.len() as u64);
+        if self.data_store_mem_usage + key_value_mem_usage <= self.max_mem {
+            log::debug!("PUT request Success (key size: {}, value size: {})", key.len(), value.len());
+            self.data_store.insert(key, value);
+            self.data_store_mem_usage += key_value_mem_usage;
+            reply.status = Status::Success as u32;
+        } else {
+            log::info!("PUT request unsuccessful, hit memory limit");
+            reply.status = Status::OutOfMemory as u32;
+        }
 
         log::trace!("Exiting handle_put");
         reply

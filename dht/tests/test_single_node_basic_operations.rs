@@ -14,6 +14,23 @@ fn init() {
 }
 
 #[test]
+fn GetPid_Success() {
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+    let proto_interface = common::get_proto_interface().unwrap();
+
+    let mut request = Request::new();
+    request.operation = Operation::GetPid as u32;
+
+    let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, *SERVER_ADDR).unwrap();
+    let reply: Reply = extract_reply(&reply_msg).unwrap();
+
+    let retrieved_pid: u32 = reply.pid.unwrap();
+    log::info!("Received PID {}", retrieved_pid);
+
+    assert_eq!(reply.status, Status::Success as u32);
+}
+
+#[test]
 fn Put_Get_Success() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 

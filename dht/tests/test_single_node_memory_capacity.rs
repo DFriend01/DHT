@@ -16,7 +16,7 @@ fn init() {
 }
 
 #[test]
-#[timeout(120000)]
+#[timeout(30000)]
 fn test_memory_capacity() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
@@ -25,8 +25,8 @@ fn test_memory_capacity() {
     // Default memory capacity is 32MB defined in main.rs
     // This test assumes that the node runs with the default capacity
     const MEMORY_CAPACITY_BYTES: u64 = 32 * 1024 * 1024;
-    const KEY_LEN: usize = 1024;
-    const VALUE_LEN: usize = 8192;
+    const KEY_LEN: usize = 32;
+    const VALUE_LEN: usize = 32;
     const PAYLOAD_SIZE: usize = KEY_LEN + VALUE_LEN;
 
     let mut total_inserted_size_bytes: u64 = 0;

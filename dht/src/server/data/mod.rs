@@ -3,6 +3,7 @@
 use std::io::{Result, Error, ErrorKind};
 use std::net::SocketAddr;
 use std::collections::HashMap;
+use std::process;
 use log;
 use mini_moka::unsync::Cache;
 use protobuf::Message;
@@ -19,6 +20,7 @@ pub struct Node {
     request_cache: Cache<Vec<u8>, Vec<u8>>,
     id: u32,
     max_mem: u64,
+    process_id: u32,
     data_store_mem_usage: u64,
     should_keep_running: bool,
 }
@@ -28,6 +30,7 @@ impl Node {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
         let max_mem_bytes: u64 = (max_mem_mb as u64) * 1024 * 1024;
+        let process_id: u32 = process::id();
         let request_cache: Cache<Vec<u8>, Vec<u8>> = Cache::builder()
             .max_capacity((MAX_CACHE_CAPACITY_PERCENT * max_mem_bytes as f64) as u64)
             .time_to_idle(std::time::Duration::from_secs(1))
@@ -40,6 +43,7 @@ impl Node {
             request_cache,
             id,
             max_mem: max_mem_bytes,
+            process_id: process_id,
             data_store_mem_usage: 0,
             should_keep_running: true,
         } )
@@ -139,6 +143,7 @@ impl Node {
             Ok(Operation::Wipe) => self.handle_wipe(),
             Ok(Operation::Ping) => self.handle_ping(),
             Ok(Operation::Shutdown) => self.handle_shutdown(),
+            Ok(Operation::GetPid) => self.handle_getpid(),
             _ => self.handle_undefined_operation(request.operation),
         };
 
@@ -283,6 +288,16 @@ impl Node {
         reply.status = Status::Success as u32;
         log::debug!("SHUTDOWN request Success");
         log::trace!("Exiting handle_shutdown");
+        reply
+    }
+
+    fn handle_getpid(&self) -> Reply {
+        log::trace!("Entering handle_getpid");
+        let mut reply: Reply = Reply::new();
+        reply.pid = Some(self.process_id);
+        reply.status = Status::Success as u32;
+        log::debug!("GETPID request Success");
+        log::trace!("Exiting handle_getpid");
         reply
     }
 

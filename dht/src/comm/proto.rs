@@ -17,6 +17,7 @@ pub enum Operation {
     Wipe = 3,
     Ping = 4,
     Shutdown = 5,
+    GetPid = 6
 }
 
 impl TryFrom<u32> for Operation {
@@ -30,6 +31,7 @@ impl TryFrom<u32> for Operation {
             3 => Ok(Operation::Wipe),
             4 => Ok(Operation::Ping),
             5 => Ok(Operation::Shutdown),
+            6 => Ok(Operation::GetPid),
             _ => Err(Error::new(ErrorKind::InvalidData, "Invalid operation")),
         }
     }

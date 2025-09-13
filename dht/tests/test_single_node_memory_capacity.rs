@@ -77,14 +77,14 @@ fn test_memory_capacity() {
         };
     };
 
-    let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
-
     if test_passed {
         let memory_utilization_ratio: f64 = (total_inserted_size_bytes as f64) / (MEMORY_CAPACITY_BYTES as f64);
         log::info!("Test completed in {}s with a memory utilization ratio of {:.1}",
             test_start_time.elapsed().as_secs(),
             memory_utilization_ratio);
     }
+
+    let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
 
     assert!(test_passed);
 }

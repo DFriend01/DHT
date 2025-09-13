@@ -77,6 +77,7 @@ fn test_memory_capacity() {
         };
     };
 
+    // TODO: Use resident memory from process to compare instead of memory capacity
     if test_passed {
         let memory_utilization_ratio: f64 = (total_inserted_size_bytes as f64) / (MEMORY_CAPACITY_BYTES as f64);
         log::info!("Test completed in {}s with a memory utilization ratio of {:.1}",

@@ -8,6 +8,8 @@ mod tests_prelude;
 
 use tests_prelude::*;
 
+const KEY_VALUE_SIZE_BYTES: usize = 64;
+
 #[ctor]
 fn init() {
     common::init_logger();
@@ -34,7 +36,10 @@ fn GetPid_Success() {
 fn Put_Get_Success() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
@@ -50,9 +55,9 @@ fn Put_Get_Success() {
 fn Put_MissingKey() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let key: Option<Vec<u8>> = None;
-    let value: Vec<u8> = common::get_rand_value();
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
 
-    let status: u32 = common::put_key_value(*SERVER_ADDR, &key, &Some(value)).unwrap();
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &key, &Some(value.clone())).unwrap();
     assert_eq!(status, Status::MissingKey as u32);
 
     let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
@@ -61,10 +66,10 @@ fn Put_MissingKey() {
 #[test]
 fn Put_MissingValue() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
-    let key: Vec<u8> = common::get_rand_key();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
     let value: Option<Vec<u8>> = None;
 
-    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key), &value).unwrap();
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &value).unwrap();
     assert_eq!(status, Status::MissingValue as u32);
 
     let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
@@ -90,7 +95,7 @@ fn Get_MissingKey() {
 #[test]
 fn Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
-    let key: Vec<u8> = common::get_rand_key();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
 
     let (_, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
     assert_eq!(status, Status::KeyNotFound as u32);
@@ -119,7 +124,10 @@ fn Delete_MissingKey() {
 fn Put_Get_Wipe_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
@@ -139,7 +147,10 @@ fn Put_Get_Wipe_Get_KeyNotFound() {
 fn Put_Get_Delete_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
@@ -164,7 +175,10 @@ fn Put_Get_Delete_Get_KeyNotFound() {
 fn Put_Get_Delete_Delete_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
@@ -189,7 +203,10 @@ fn Put_Get_Delete_Delete_KeyNotFound() {
 fn Put_Delete_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (deleted_value_opt, status) = common::delete_key_value(*SERVER_ADDR, &key).unwrap();

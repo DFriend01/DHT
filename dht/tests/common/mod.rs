@@ -185,6 +185,10 @@ pub fn delete_key_value(server_addr: SocketAddr, key: &Vec<u8>) -> Result<(Optio
 
 pub fn get_rand_bytes(min_len: usize, max_len: usize) -> Vec<u8> {
     let len = rand::thread_rng().gen_range(min_len..max_len);
+    get_bytes(len)
+}
+
+pub fn get_bytes(len: usize) -> Vec<u8> {
     let mut bytes = vec![0; len];
     let _ = rand::thread_rng().try_fill_bytes(&mut bytes);
     bytes

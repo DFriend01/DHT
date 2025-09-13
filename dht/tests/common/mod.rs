@@ -31,7 +31,7 @@ pub fn init_logger() {
     // Initialize the loggers
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .build(Root::builder().appender("stdout").build(LevelFilter::Debug))
+        .build(Root::builder().appender("stdout").build(LevelFilter::Info))
         .unwrap();
 
     let _handle = log4rs::init_config(config).unwrap();

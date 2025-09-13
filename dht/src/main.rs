@@ -9,6 +9,7 @@ use crate::server::data::Node;
 pub mod comm;
 pub mod logging;
 pub mod server;
+pub mod util;
 
 /// Command-line arguments
 #[derive(Parser, Debug)]

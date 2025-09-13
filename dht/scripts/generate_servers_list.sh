@@ -3,13 +3,19 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Check if an argument is provided and is a positive integer
-if [[ $# -ne 1 ]] || ! [[ $1 =~ ^[0-9]+$ ]] || [[ $1 -le 0 ]]; then
-    echo "Usage: $0 <positive_integer>"
+if ! [[ $1 =~ ^[0-9]+$ ]] || [[ $1 -le 0 ]]; then
+    echo "Usage: $0 <positive_integer> <server file path>.txt"
     exit 1
 fi
 
+# Check if argument is a text file path
+if ! [[ $2 =~ ^.+\.txt$ ]]; then
+    echo "Usage: $0 <positive_integer> <server file path>.txt"
+    exit 2
+fi
+
 N=$1
-OUTPUT_FILE="${SCRIPT_DIR}/../servers.txt"
+OUTPUT_FILE=$(realpath -m "${SCRIPT_DIR}/../${2}")
 PORTS_FOUND=0
 START_PORT=1024
 UPPER_BOUND=65535
@@ -18,7 +24,8 @@ AVAILABLE_PORTS=()
 # Function to check if a port is available
 is_port_available() {
     local port=$1
-    if ss -tuln | grep -q ":$port "; then
+    local used_ports=$(sudo netstat -tunlp | tail -n +3 | awk '{print $4}' | cut -d':' -f2)
+    if echo ${used_ports} | grep -q ${port}; then
         return 1
     else
         return 0
@@ -46,5 +53,6 @@ for port in "${AVAILABLE_PORTS[@]}"; do
     OUT+="${ADDRESS}\n"
 done
 
+mkdir -p $(dirname $OUTPUT_FILE)
 echo -en $OUT > $OUTPUT_FILE
-echo "Found $N available ports and wrote them to `realpath $OUTPUT_FILE`"
+echo "Found $N available ports and wrote them to $OUTPUT_FILE"

@@ -2,8 +2,8 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-# 64MB virtual memory limit per node process
-VM_LIMIT_KB=65536
+VM_LIMIT_MB=64
+VM_LIMIT_B=$((VM_LIMIT_MB * 1024 * 1024))
 
 function start_servers() {
     local SERVERS_FILE=$1
@@ -14,7 +14,7 @@ function start_servers() {
     for ((i=0; i<SERVERS_COUNT; i++)); do
         local SERVER=${SERVERS[$i]}
         local PORT=$(echo $SERVER | cut -d':' -f2)
-        ${SCRIPT_DIR}/start_node.sh ${PORT} ${i} ${VM_LIMIT_KB}
+        ${SCRIPT_DIR}/start_node.sh ${PORT} ${i} ${VM_LIMIT_B}
     done
 }
 

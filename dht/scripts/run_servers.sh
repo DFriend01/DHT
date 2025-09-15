@@ -2,6 +2,7 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# FIXME: This doesn't actually do any memory restrictions yet, see start_node.sh
 VM_LIMIT_MB=64
 VM_LIMIT_B=$((VM_LIMIT_MB * 1024 * 1024))
 

@@ -6,6 +6,7 @@ use dht::comm::protogen::api::{Request, Reply};
 mod common;
 mod tests_prelude;
 
+use ntest::test_case;
 use tests_prelude::*;
 
 const KEY_VALUE_SIZE_BYTES: usize = 64;
@@ -34,13 +35,21 @@ fn GetPid_Success() {
     assert_eq!(reply.status, Status::Success as u32);
 }
 
-#[test]
-fn Put_Get_Success() {
+#[test_case(64)]
+#[test_case(128)]
+#[test_case(256)]
+#[test_case(512)]
+#[test_case(1024)]
+#[test_case(2048)]
+#[test_case(4096)]
+#[test_case(8192)]
+fn Put_Get_Success(value_size: usize) {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
     let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
-    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(value_size);
 
+    log::info!("Inserting key-value pair with Key Size {} B and Value Size {} B", KEY_VALUE_SIZE_BYTES, value_size);
     let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 

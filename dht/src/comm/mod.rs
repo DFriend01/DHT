@@ -14,6 +14,7 @@ pub mod protogen;
 const SEND_RECV_TIMEOUT: Duration = Duration::from_millis(100);
 const LISTENING_TIMEOUT: Duration = Duration::from_millis(1000);
 const MAX_RETRIES: u32 = 3;
+const MAX_BUFFER_SIZE_BYTES: usize = 16384;
 const TIMEOUT_MULTIPLIER: u32 = 2;
 
 pub struct ProtoInterface {
@@ -42,7 +43,7 @@ impl ProtoInterface {
     }
 
     pub fn listen(&self) -> Result<(UDPMessage, SocketAddr)> {
-        let mut buf: [u8; 1024] = [0; 1024];
+        let mut buf: [u8; MAX_BUFFER_SIZE_BYTES] = [0; MAX_BUFFER_SIZE_BYTES];
         let (size, sender_addr) = match self.udp_interface.listen(&mut buf) {
             Ok((size, sender_addr)) => (size, sender_addr),
             Err(e) => {
@@ -66,7 +67,7 @@ impl ProtoInterface {
     pub fn send_and_recv(&self, message: impl Message, server_addr: SocketAddr) -> Result<(UDPMessage, SocketAddr)> {
         let udp_message: UDPMessage = proto::create_udp_message(message, self.ip, self.port)?;
         let msg_bytes: Vec<u8> = UDPMessage::write_to_bytes(&udp_message)?;
-        let mut buf: [u8; 1024] = [0; 1024];
+        let mut buf: [u8; MAX_BUFFER_SIZE_BYTES] = [0; MAX_BUFFER_SIZE_BYTES];
         let (size, sender_addr) = self.udp_interface.send_and_recv(&msg_bytes, server_addr, &mut buf)?;
 
         let recv_data: Vec<u8> = buf[0..size].to_vec();

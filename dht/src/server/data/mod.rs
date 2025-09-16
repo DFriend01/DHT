@@ -59,17 +59,25 @@ impl Node {
                     log::trace!("Received message from {}", addr);
                     (msg, addr)
                 },
-                Err(e) => {
-                    log::trace!("Failed to receive message: {}", e);
-                    continue;
+                Err(e) => match e.kind() {
+                    ErrorKind::WouldBlock => {
+                        log::trace!("Timeout on UDP port");
+                        continue;
+                    },
+                    _ => {
+                        log::error!("Internal server error: {}", e);
+                        continue;
+                    }
                 }
             };
 
             let reply: Reply = match self.get_reply(msg) {
                 Ok(reply) => reply,
                 Err(e) => {
-                    log::trace!("Failed to get reply: {}", e);
-                    continue;
+                    log::debug!("Failed to get reply: {}", e);
+                    let mut reply: Reply = Reply::new();
+                    reply.status = Status::InternalError as u32;
+                    reply
                 }
             };
 

@@ -63,6 +63,20 @@ fn Put_Get_Success(value_size: usize) {
 }
 
 #[test]
+fn Put_InvalidValueSize() {
+    // Assuming the max value payload is 10KB defined in the node module
+    const VALUE_SIZE_BYTES: usize = 11 * 1024;
+
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
+    assert_eq!(status, Status::InvalidValueSize as u32);
+}
+
+#[test]
 fn Put_MissingKey() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let key: Option<Vec<u8>> = None;

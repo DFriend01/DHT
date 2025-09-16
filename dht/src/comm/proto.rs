@@ -47,6 +47,7 @@ pub enum Status {
     OutOfMemory = 6,
     UndefinedOperation = 7,
     InternalError = 8,
+    InvalidValueSize = 9
 }
 
 impl TryFrom<u32> for Status {

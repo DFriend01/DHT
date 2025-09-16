@@ -13,6 +13,7 @@ use crate::comm::proto::{Operation, Status, extract_request};
 use crate::comm::protogen::api::{UDPMessage, Request, Reply};
 
 const MAX_CACHE_CAPACITY_PERCENT: f64 = 0.1;
+const MAX_VALUE_PAYLOAD_SIZE_BYTES: usize = 1024 * 10;
 
 pub struct Node {
     proto_interface: ProtoInterface,
@@ -175,6 +176,15 @@ impl Node {
                 return reply;
             }
         };
+
+        if value.len() > MAX_VALUE_PAYLOAD_SIZE_BYTES {
+            log::debug!("PUT request InvalidValueSize. Value with size {} B exceeds the maximum of {} B",
+                value.len(),
+                MAX_VALUE_PAYLOAD_SIZE_BYTES);
+            reply.status = Status::InvalidValueSize as u32;
+            log::trace!("Exiting handle_put");
+            return reply;
+        }
 
         let key_value_mem_usage: u64 = (key.len() as u64) + (value.len() as u64);
         if self.data_store_mem_usage + key_value_mem_usage <= self.max_mem {

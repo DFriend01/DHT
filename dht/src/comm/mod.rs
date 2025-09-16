@@ -1,5 +1,4 @@
 use core::option::Option;
-use log;
 use std::io::{Result, Error, ErrorKind};
 use std::net::{SocketAddr, IpAddr, UdpSocket};
 use std::time::Duration;
@@ -56,10 +55,7 @@ impl ProtoInterface {
 
         match proto::validate_checksum(&message) {
             Ok(_) => Ok((message, sender_addr)),
-            Err(e) => {
-                log::trace!("Error validating checksum: {}", e);
-                Err(e)
-            },
+            Err(e) => Err(e)
         }
     }
 

@@ -3,6 +3,8 @@
 use dht::comm::proto::{extract_reply, Operation, Status};
 use dht::comm::protogen::api::{Request, Reply};
 
+use std::io::ErrorKind;
+
 mod common;
 mod tests_prelude;
 
@@ -74,6 +76,24 @@ fn Put_InvalidValueSize() {
 
     let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::InvalidValueSize as u32);
+}
+
+#[test]
+fn test_large_PUT_WouldBlock() {
+    const VALUE_SIZE_BYTES: usize = 13 * 1024;
+
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(VALUE_SIZE_BYTES);
+
+    match common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())) {
+        Ok(_) => panic!("The server should not be responding to packets exceeding 12KB, you have {} B", VALUE_SIZE_BYTES),
+        Err(e) => match e.kind() {
+            ErrorKind::WouldBlock => log::info!("Expected port blocking occurred, test passed"),
+            _ => panic!("The server should not be responding with error: {}", e)
+        }
+    }
 }
 
 #[test]

@@ -3,6 +3,7 @@
 use std::io::{Result, Error, ErrorKind};
 use std::net::SocketAddr;
 use std::collections::HashMap;
+use std::process;
 use log;
 use mini_moka::unsync::Cache;
 use protobuf::Message;
@@ -12,6 +13,7 @@ use crate::comm::proto::{Operation, Status, extract_request};
 use crate::comm::protogen::api::{UDPMessage, Request, Reply};
 
 const MAX_CACHE_CAPACITY_PERCENT: f64 = 0.1;
+const MAX_VALUE_PAYLOAD_SIZE_BYTES: usize = 1024 * 10;
 
 pub struct Node {
     proto_interface: ProtoInterface,
@@ -19,6 +21,7 @@ pub struct Node {
     request_cache: Cache<Vec<u8>, Vec<u8>>,
     id: u32,
     max_mem: u64,
+    process_id: u32,
     data_store_mem_usage: u64,
     should_keep_running: bool,
 }
@@ -28,6 +31,7 @@ impl Node {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
         let max_mem_bytes: u64 = (max_mem_mb as u64) * 1024 * 1024;
+        let process_id: u32 = process::id();
         let request_cache: Cache<Vec<u8>, Vec<u8>> = Cache::builder()
             .max_capacity((MAX_CACHE_CAPACITY_PERCENT * max_mem_bytes as f64) as u64)
             .time_to_idle(std::time::Duration::from_secs(1))
@@ -40,6 +44,7 @@ impl Node {
             request_cache,
             id,
             max_mem: max_mem_bytes,
+            process_id: process_id,
             data_store_mem_usage: 0,
             should_keep_running: true,
         } )
@@ -54,17 +59,25 @@ impl Node {
                     log::trace!("Received message from {}", addr);
                     (msg, addr)
                 },
-                Err(e) => {
-                    log::trace!("Failed to receive message: {}", e);
-                    continue;
+                Err(e) => match e.kind() {
+                    ErrorKind::WouldBlock => {
+                        log::trace!("Timeout on UDP port");
+                        continue;
+                    },
+                    _ => {
+                        log::error!("Internal server error: {}", e);
+                        continue;
+                    }
                 }
             };
 
             let reply: Reply = match self.get_reply(msg) {
                 Ok(reply) => reply,
                 Err(e) => {
-                    log::trace!("Failed to get reply: {}", e);
-                    continue;
+                    log::debug!("Failed to get reply: {}", e);
+                    let mut reply: Reply = Reply::new();
+                    reply.status = Status::InternalError as u32;
+                    reply
                 }
             };
 
@@ -139,6 +152,7 @@ impl Node {
             Ok(Operation::Wipe) => self.handle_wipe(),
             Ok(Operation::Ping) => self.handle_ping(),
             Ok(Operation::Shutdown) => self.handle_shutdown(),
+            Ok(Operation::GetPid) => self.handle_getpid(),
             _ => self.handle_undefined_operation(request.operation),
         };
 
@@ -171,10 +185,25 @@ impl Node {
             }
         };
 
-        log::debug!("PUT request Success (key size: {}, value size: {})", key.len(), value.len());
-        self.data_store_mem_usage += (key.len() as u64) + (value.len() as u64);
-        self.data_store.insert(key, value);
-        reply.status = Status::Success as u32;
+        if value.len() > MAX_VALUE_PAYLOAD_SIZE_BYTES {
+            log::debug!("PUT request InvalidValueSize. Value with size {} B exceeds the maximum of {} B",
+                value.len(),
+                MAX_VALUE_PAYLOAD_SIZE_BYTES);
+            reply.status = Status::InvalidValueSize as u32;
+            log::trace!("Exiting handle_put");
+            return reply;
+        }
+
+        let key_value_mem_usage: u64 = (key.len() as u64) + (value.len() as u64);
+        if self.data_store_mem_usage + key_value_mem_usage <= self.max_mem {
+            log::debug!("PUT request Success (key size: {}, value size: {})", key.len(), value.len());
+            self.data_store.insert(key, value);
+            self.data_store_mem_usage += key_value_mem_usage;
+            reply.status = Status::Success as u32;
+        } else {
+            log::info!("PUT request unsuccessful, hit memory limit");
+            reply.status = Status::OutOfMemory as u32;
+        }
 
         log::trace!("Exiting handle_put");
         reply
@@ -277,6 +306,16 @@ impl Node {
         reply.status = Status::Success as u32;
         log::debug!("SHUTDOWN request Success");
         log::trace!("Exiting handle_shutdown");
+        reply
+    }
+
+    fn handle_getpid(&self) -> Reply {
+        log::trace!("Entering handle_getpid");
+        let mut reply: Reply = Reply::new();
+        reply.pid = Some(self.process_id);
+        reply.status = Status::Success as u32;
+        log::debug!("GETPID request Success");
+        log::trace!("Exiting handle_getpid");
         reply
     }
 

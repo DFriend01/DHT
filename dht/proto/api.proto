@@ -15,4 +15,5 @@ message Request {
 message Reply {
     uint32 status = 1;
     optional bytes value = 2;
+    optional uint32 pid = 3;
 }

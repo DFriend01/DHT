@@ -3,21 +3,56 @@
 use dht::comm::proto::{extract_reply, Operation, Status};
 use dht::comm::protogen::api::{Request, Reply};
 
+use std::io::ErrorKind;
+
 mod common;
 mod tests_prelude;
 
+use ntest::test_case;
 use tests_prelude::*;
+
+const KEY_VALUE_SIZE_BYTES: usize = 64;
 
 #[ctor]
 fn init() {
     common::init_logger();
 }
 
+// TODO: Add test to PUT increasingly larger packets up to a max
+
 #[test]
-fn Put_Get_Success() {
+fn GetPid_Success() {
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+    let proto_interface = common::get_proto_interface().unwrap();
+
+    let mut request = Request::new();
+    request.operation = Operation::GetPid as u32;
+
+    let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, *SERVER_ADDR).unwrap();
+    let reply: Reply = extract_reply(&reply_msg).unwrap();
+
+    let retrieved_pid: u32 = reply.pid.unwrap();
+    log::info!("Received PID {}", retrieved_pid);
+
+    assert_eq!(reply.status, Status::Success as u32);
+}
+
+#[test_case(64)]
+#[test_case(128)]
+#[test_case(256)]
+#[test_case(512)]
+#[test_case(1024)]
+#[test_case(2048)]
+#[test_case(4096)]
+#[test_case(8192)]
+fn Put_Get_Success(value_size: usize) {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(value_size);
+
+    log::info!("Inserting key-value pair with Key Size {} B and Value Size {} B", KEY_VALUE_SIZE_BYTES, value_size);
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
@@ -30,12 +65,44 @@ fn Put_Get_Success() {
 }
 
 #[test]
+fn Put_InvalidValueSize() {
+    // Assuming the max value payload is 10KB defined in the node module
+    const VALUE_SIZE_BYTES: usize = 11 * 1024;
+
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
+    assert_eq!(status, Status::InvalidValueSize as u32);
+}
+
+#[test]
+fn test_large_PUT_WouldBlock() {
+    const VALUE_SIZE_BYTES: usize = 13 * 1024;
+
+    let _result = common::ping_servers(vec![*SERVER_ADDR], true);
+
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(VALUE_SIZE_BYTES);
+
+    match common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())) {
+        Ok(_) => panic!("The server should not be responding to packets exceeding 12KB, you have {} B", VALUE_SIZE_BYTES),
+        Err(e) => match e.kind() {
+            ErrorKind::WouldBlock => log::info!("Expected port blocking occurred, test passed"),
+            _ => panic!("The server should not be responding with error: {}", e)
+        }
+    }
+}
+
+#[test]
 fn Put_MissingKey() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
     let key: Option<Vec<u8>> = None;
-    let value: Vec<u8> = common::get_rand_value();
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
 
-    let status: u32 = common::put_key_value(*SERVER_ADDR, &key, &Some(value)).unwrap();
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &key, &Some(value.clone())).unwrap();
     assert_eq!(status, Status::MissingKey as u32);
 
     let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
@@ -44,10 +111,10 @@ fn Put_MissingKey() {
 #[test]
 fn Put_MissingValue() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
-    let key: Vec<u8> = common::get_rand_key();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
     let value: Option<Vec<u8>> = None;
 
-    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key), &value).unwrap();
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &value).unwrap();
     assert_eq!(status, Status::MissingValue as u32);
 
     let _ = common::wipe_servers(vec![*SERVER_ADDR], 1);
@@ -73,7 +140,7 @@ fn Get_MissingKey() {
 #[test]
 fn Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
-    let key: Vec<u8> = common::get_rand_key();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
 
     let (_, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
     assert_eq!(status, Status::KeyNotFound as u32);
@@ -102,7 +169,10 @@ fn Delete_MissingKey() {
 fn Put_Get_Wipe_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
@@ -122,7 +192,10 @@ fn Put_Get_Wipe_Get_KeyNotFound() {
 fn Put_Get_Delete_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
@@ -147,7 +220,10 @@ fn Put_Get_Delete_Get_KeyNotFound() {
 fn Put_Get_Delete_Delete_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (retrived_value_opt, status) = common::get_value(*SERVER_ADDR, &key).unwrap();
@@ -172,7 +248,10 @@ fn Put_Get_Delete_Delete_KeyNotFound() {
 fn Put_Delete_Get_KeyNotFound() {
     let _result = common::ping_servers(vec![*SERVER_ADDR], true);
 
-    let (key, value, status) = common::put_rand_key_value(*SERVER_ADDR).unwrap();
+    let key: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+    let value: Vec<u8> = common::get_bytes(KEY_VALUE_SIZE_BYTES);
+
+    let status: u32 = common::put_key_value(*SERVER_ADDR, &Some(key.clone()), &Some(value.clone())).unwrap();
     assert_eq!(status, Status::Success as u32);
 
     let (deleted_value_opt, status) = common::delete_key_value(*SERVER_ADDR, &key).unwrap();

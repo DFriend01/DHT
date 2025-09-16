@@ -8,7 +8,8 @@ export RUST_BACKTRACE=1
 sudo -v
 
 cargo test --test test_single_node_is_alive -- ${TEST_ARGS} && \
-    cargo test --test test_single_node_basic_operations -- ${TEST_ARGS}
+    cargo test --test test_single_node_basic_operations -- ${TEST_ARGS} && \
+    cargo test --test test_single_node_memory_capacity -- ${TEST_ARGS}
 
 cargo test --test test_single_node_shutdown -- ${TEST_ARGS}
 

@@ -47,7 +47,6 @@ impl ProtoInterface {
         let (size, sender_addr) = match self.udp_interface.listen(&mut buf) {
             Ok((size, sender_addr)) => (size, sender_addr),
             Err(e) => {
-                log::trace!("Error listening: {}", e);
                 return Err(e);
             }
         };

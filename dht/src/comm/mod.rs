@@ -14,7 +14,7 @@ pub mod protogen;
 const SEND_RECV_TIMEOUT: Duration = Duration::from_millis(100);
 const LISTENING_TIMEOUT: Duration = Duration::from_millis(1000);
 const MAX_RETRIES: u32 = 3;
-const MAX_BUFFER_SIZE_BYTES: usize = 16384;
+const MAX_BUFFER_SIZE_BYTES: usize = 1024 * 12;
 const TIMEOUT_MULTIPLIER: u32 = 2;
 
 pub struct ProtoInterface {

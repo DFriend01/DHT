@@ -15,7 +15,7 @@ if ! [[ $2 =~ ^.+\.txt$ ]]; then
 fi
 
 N=$1
-OUTPUT_FILE=$(realpath -m "${SCRIPT_DIR}/../${2}")
+OUTPUT_FILE=$(realpath -m "${SCRIPT_DIR}/../../${2}")
 PORTS_FOUND=0
 START_PORT=1024
 UPPER_BOUND=65535

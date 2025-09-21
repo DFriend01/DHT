@@ -2,6 +2,21 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# Check if an argument is provided and is a positive integer
+if ! [[ $1 =~ ^[0-9]+$ ]] || [[ $1 -le 0 ]]; then
+    echo "Usage: $0 <positive_integer> <server file path>.txt"
+    exit 1
+fi
+
+# Check if argument is a text file path
+if ! [[ $2 =~ ^.+\.txt$ ]]; then
+    echo "Usage: $0 <positive_integer> <server file path>.txt"
+    exit 2
+fi
+
+NUM_SERVERS="${1}"
+SERVER_LIST_FILE="${2}"
+
 # FIXME: This doesn't actually do any memory restrictions yet, see start_node.sh
 VM_LIMIT_MB=64
 VM_LIMIT_B=$((VM_LIMIT_MB * 1024 * 1024))
@@ -19,5 +34,5 @@ function start_servers() {
     done
 }
 
-${SCRIPT_DIR}/generate_servers_list.sh 1 servers/single_server.txt
-start_servers $(realpath ${SCRIPT_DIR}/../servers/single_server.txt)
+${SCRIPT_DIR}/generate_servers_list.sh "${NUM_SERVERS}" "${SERVER_LIST_FILE}"
+start_servers $(realpath "${SCRIPT_DIR}/../../${SERVER_LIST_FILE}")

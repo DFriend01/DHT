@@ -11,9 +11,7 @@
 The [scripts](./dht/scripts/) directory has utility scripts to help with running tests:
 
 - Run the unit tests: `./run_unit_tests.sh`
-- Run the integration tests:
-  - Start up a server node in the background: `./run_servers.sh`
-  - Run the test script: `./run_integration_tests.sh`
+- Run the integration tests: `./run_single_node_integration_tests.sh`
 
 The integration test script should stop all servers once the tests are complete. If something goes
 wrong, `stop_servers.sh` can be used to stop the server instances.

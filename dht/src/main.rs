@@ -65,9 +65,6 @@ fn main() {
     let cli_args: Args = Args::parse();
     let config: Config = Config::load().expect("Unable to read and deserialize config.toml");
 
-    println!("{}", cli_args);
-    println!("{}", config);
-
     // Set the log level
     let log_level = match config.log_level.as_str() {
         "trace" => LevelFilter::Trace,
@@ -101,6 +98,8 @@ fn main() {
         }
     };
 
+    log::info!("{}", cli_args);
+    log::info!("{}", config);
     log::info!("Server N{} bound to address {}", cli_args.server_id, server_addr);
 
     let _ = server.run();

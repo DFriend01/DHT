@@ -2,6 +2,7 @@ use clap::Parser;
 use log;
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
+use std::path::{PathBuf, Path};
 use std::net::SocketAddr;
 
 use crate::logging::server::init_logger;
@@ -25,6 +26,12 @@ struct Args {
     server_id: u32
 }
 
+impl std::fmt::Display for Args {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Args {{ port: {}, server_id: {} }}", self.port, self.server_id)
+    }
+}
+
 // Configuration file fields
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Config {
@@ -34,8 +41,9 @@ struct Config {
 
 impl Config {
     pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
-        const CONFIG_PATH: &str = "config.toml";
-        let content: String = match std::fs::read_to_string(CONFIG_PATH) {
+        let base_dir: &'static str = env!("CARGO_MANIFEST_DIR");
+        let config_path: PathBuf = Path::new(base_dir).join("config.toml");
+        let content: String = match std::fs::read_to_string(config_path) {
             Ok(deserialized_content) => deserialized_content,
             Err(e) => return Err(Box::new(e))
         };
@@ -47,9 +55,18 @@ impl Config {
     }
 }
 
+impl std::fmt::Display for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Config {{ log_level: {}, max_memory_mb: {} }}", self.log_level, self.max_memory_mb)
+    }
+}
+
 fn main() {
     let cli_args: Args = Args::parse();
     let config: Config = Config::load().expect("Unable to read and deserialize config.toml");
+
+    println!("{}", cli_args);
+    println!("{}", config);
 
     // Set the log level
     let log_level = match config.log_level.as_str() {

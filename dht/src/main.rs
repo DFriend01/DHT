@@ -27,9 +27,9 @@ struct Args {
 
 // Configuration file fields
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Config {
-    pub log_level: String,
-    pub max_memory_mb: u32
+struct Config {
+    log_level: String,
+    max_memory_mb: u32
 }
 
 impl Config {

@@ -1,0 +1,2 @@
+log_level = "info"
+max_memory_mb = 32

@@ -36,7 +36,8 @@ impl std::fmt::Display for Args {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Config {
     log_level: String,
-    max_memory_mb: u32
+    max_memory_mb: u32,
+    chord_sizing_factor: u32
 }
 
 impl Config {
@@ -90,7 +91,7 @@ fn main() {
     log::set_max_level(log_level);
     init_logger(log_level, cli_args.server_id);
 
-    let mut server: Node = match Node::new(server_addr, cli_args.server_id, config.max_memory_mb) {
+    let mut server: Node = match Node::new(server_addr, cli_args.server_id, config.max_memory_mb, config.chord_sizing_factor) {
         Ok(node) => node,
         Err(e) => {
             eprintln!("Failed to create server: {}", e);

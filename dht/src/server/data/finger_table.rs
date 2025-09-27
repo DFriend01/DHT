@@ -23,7 +23,8 @@ impl FingerTable {
             finger_positions.push(next_position);
         }
 
-        // MIGHT NOT NEED A MEMBERSHIP LIST, REVISIT
+        // TODO: Instead of storing the membership list, use the initial list to get the successors of each finger
+        
         // FIXME Should probably use a different server naming convention other than IP address
         // in the scenario the IP address changes.
         let mut membership_list: HashMap<SocketAddr, u32> = HashMap::new();

@@ -12,6 +12,8 @@ use crate::comm::ProtoInterface;
 use crate::comm::proto::{Operation, Status, extract_request};
 use crate::comm::protogen::api::{UDPMessage, Request, Reply};
 
+mod finger_table;
+
 const MAX_CACHE_CAPACITY_PERCENT: f64 = 0.1;
 const MAX_VALUE_PAYLOAD_SIZE_BYTES: usize = 1024 * 10;
 

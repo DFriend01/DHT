@@ -42,20 +42,30 @@ impl FingerTable {
     }
 
     fn get_position_of_this_node(&self) -> u32 {
-        self.get_start_position(0)
+        const FIRST_FINGER: u32 = 0;
+        self.get_start_position(FIRST_FINGER);
     }
 
     fn get_start_position(&self, finger_index: usize) -> u32 {
         self.finger_start_positions[finger_index]
     }
 
+    fn get_node_position(&self, finger_index: u32) -> u32 {
+        self.finger_node_positions[finger_index]
+    }
+
+    fn get_node_address(&self, finger_index: u32) -> SocketAddr {
+        self.finger_node_socket_addrs[finger_index]
+    }
+
+    fn get_successor_position(&self) -> u32 {
+        const SECOND_FINGER: u32 = 1;
+        self.get_node_position(SECOND_FINGER);
+    }
+
     fn get_finger_table_size(&self) -> usize {
         self.finger_start_positions.len()
     }
-
-    // TODO Implement function to find the first node greater than or equal to the given finger
-
-    // TODO Implement function to find the successor
 
     // TODO Implement function to find the predecessor
 

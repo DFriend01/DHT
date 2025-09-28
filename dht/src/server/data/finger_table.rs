@@ -13,11 +13,8 @@ pub struct FingerTable {
 impl FingerTable {
     pub fn new(socket_addr: SocketAddr, peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> Result<Self> {
         let finger_start_chord_positions: Vec<u32> = FingerTable::get_finger_start_positions(&socket_addr, size_factor);
-
-        let node_position: u32 = finger_start_chord_positions[0];
         let (finger_node_chord_positions, finger_node_socket_addrs) = FingerTable::get_finger_node_positions_and_addrs(
             socket_addr,
-            node_position,
             peer_socket_addrs,
             finger_start_chord_positions.clone(),
             size_factor
@@ -81,7 +78,6 @@ impl FingerTable {
     }
 
     fn get_finger_node_positions_and_addrs(node_socket_addr: SocketAddr,
-        node_position: u32,
         peer_socket_addrs: Vec<SocketAddr>,
         finger_start_positions: Vec<u32>,
         size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
@@ -92,7 +88,8 @@ impl FingerTable {
         let mut finger_node_addrs: Vec<SocketAddr> = Vec::new();
 
         // The first finger is this node
-        finger_node_positions.push(node_position);
+        let first_finger_position: u32 = finger_start_positions[0];
+        finger_node_positions.push(first_finger_position);
         finger_node_addrs.push(node_socket_addr);
 
         // Now, find the rest of the fingers

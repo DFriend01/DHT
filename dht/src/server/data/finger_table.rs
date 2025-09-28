@@ -12,18 +12,9 @@ pub struct FingerTable {
 
 impl FingerTable {
     pub fn new(socket_addr: SocketAddr, peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> Result<Self> {
+        let finger_start_chord_positions: Vec<u32> = FingerTable::get_finger_start_positions(&socket_addr, size_factor);
 
-        let mut finger_start_chord_positions: Vec<u32> = Vec::new();
-
-        let node_position: u32 = FingerTable::calculate_member_position_from_address(&socket_addr, size_factor);
-        finger_start_chord_positions.push(node_position);
-
-        // Start at index 1 because position 0 was already calculated
-        for finger_index in 1..size_factor {
-            let next_position: u32 = FingerTable::calculate_start_position(node_position, finger_index, size_factor);
-            finger_start_chord_positions.push(next_position);
-        }
-
+        let node_position: u32 = finger_start_chord_positions[0];
         let (finger_node_chord_positions, finger_node_socket_addrs) = FingerTable::get_finger_node_positions_and_addrs(
             socket_addr,
             node_position,
@@ -74,6 +65,21 @@ impl FingerTable {
     // TODO Implement function to find the predecessor
 
     // Static functions
+    fn get_finger_start_positions(node_socket_addr: &SocketAddr, size_factor: usize) -> Vec<u32> {
+        let mut finger_start_chord_positions: Vec<u32> = Vec::new();
+
+        let node_position: u32 = FingerTable::calculate_member_position_from_address(node_socket_addr, size_factor);
+        finger_start_chord_positions.push(node_position);
+
+        // Start at index 1 because position 0 was already calculated
+        for finger_index in 1..size_factor {
+            let next_position: u32 = FingerTable::calculate_start_position(node_position, finger_index, size_factor);
+            finger_start_chord_positions.push(next_position);
+        }
+
+        finger_start_chord_positions
+    }
+
     fn get_finger_node_positions_and_addrs(node_socket_addr: SocketAddr,
         node_position: u32,
         peer_socket_addrs: Vec<SocketAddr>,

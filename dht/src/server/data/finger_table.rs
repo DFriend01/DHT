@@ -24,12 +24,10 @@ impl FingerTable {
             finger_start_chord_positions.push(next_position);
         }
 
-        let (sorted_peer_positions, sorted_peer_socket_addrs) = FingerTable::get_sorted_peer_positions_and_addrs(peer_socket_addrs, size_factor);
         let (finger_node_chord_positions, finger_node_socket_addrs) = FingerTable::get_finger_node_positions_and_addrs(
             socket_addr,
             node_position,
-            sorted_peer_positions,
-            sorted_peer_socket_addrs,
+            peer_socket_addrs,
             finger_start_chord_positions.clone(),
             size_factor
         );
@@ -76,6 +74,41 @@ impl FingerTable {
     // TODO Implement function to find the predecessor
 
     // Static functions
+    fn get_finger_node_positions_and_addrs(node_socket_addr: SocketAddr,
+        node_position: u32,
+        peer_socket_addrs: Vec<SocketAddr>,
+        finger_start_positions: Vec<u32>,
+        size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
+
+        let (sorted_peer_positions, sorted_peer_socket_addrs) = FingerTable::get_sorted_peer_positions_and_addrs(peer_socket_addrs, size_factor);
+
+        let mut finger_node_positions: Vec<u32> = Vec::new();
+        let mut finger_node_addrs: Vec<SocketAddr> = Vec::new();
+
+        // The first finger is this node
+        finger_node_positions.push(node_position);
+        finger_node_addrs.push(node_socket_addr);
+
+        // Now, find the rest of the fingers
+        let mut finger_index: usize = 1;
+        let mut peer_index: usize = 0;
+
+        while (finger_index < finger_start_positions.len()) && (peer_index < sorted_peer_positions.len()) {
+            let finger_start_position: u32 = finger_start_positions[finger_index];
+            let peer_position: u32 = sorted_peer_positions[peer_index];
+
+            if peer_position >= finger_start_position {
+                finger_node_positions.push(peer_position);
+                finger_node_addrs.push(sorted_peer_socket_addrs[peer_index]);
+                finger_index += 1;
+            } else {
+                peer_index += 1;
+            }
+        }
+
+        (finger_node_positions, finger_node_addrs)
+    }
+
     fn get_sorted_peer_positions_and_addrs(peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
         // FIXME Should probably use a different server naming convention other than IP address
         // in the scenario the IP address changes.
@@ -92,40 +125,6 @@ impl FingerTable {
         let sorted_peer_socket_addrs: Vec<SocketAddr> = indices.iter().map(|&i| peer_socket_addrs[i]).collect();
 
         (sorted_peer_positions, sorted_peer_socket_addrs)
-    }
-
-    fn get_finger_node_positions_and_addrs(node_socket_addr: SocketAddr,
-        node_position: u32,
-        peer_positions: Vec<u32>,
-        peer_socket_addrs: Vec<SocketAddr>,
-        finger_start_positions: Vec<u32>,
-        size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
-
-        let mut finger_node_positions: Vec<u32> = Vec::new();
-        let mut finger_node_addrs: Vec<SocketAddr> = Vec::new();
-
-        // The first finger is this node
-        finger_node_positions.push(node_position);
-        finger_node_addrs.push(node_socket_addr);
-
-        // Now, find the rest of the fingers
-        let mut finger_index: usize = 1;
-        let mut peer_index: usize = 0;
-
-        while (finger_index < finger_start_positions.len()) && (peer_index < peer_positions.len()) {
-            let finger_start_position: u32 = finger_node_positions[finger_index];
-            let peer_position: u32 = peer_positions[peer_index];
-
-            if peer_position >= finger_start_position {
-                finger_node_positions.push(peer_position);
-                finger_node_addrs.push(peer_socket_addrs[peer_index]);
-                finger_index += 1;
-            }
-
-            peer_index += 1;
-        }
-
-        (finger_node_positions, finger_node_addrs)
     }
 
     fn calculate_member_position_from_address(socket_addr: &SocketAddr, size_factor: usize) -> u32 {

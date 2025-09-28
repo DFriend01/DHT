@@ -4,27 +4,25 @@ use std::net::SocketAddr;
 use crate::util;
 
 pub struct FingerTable {
-    finger_start_chord_positions: Vec<u32>,
-    finger_node_chord_positions: Vec<u32>,
-    finger_node_socket_addrs: Vec<SocketAddr>,
-    size_factor: usize
+    finger_start_positions: Vec<u32>,
+    finger_node_positions: Vec<u32>,
+    finger_node_socket_addrs: Vec<SocketAddr>
 }
 
 impl FingerTable {
-    pub fn new(socket_addr: SocketAddr, peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> Result<Self> {
-        let finger_start_chord_positions: Vec<u32> = FingerTable::get_finger_start_positions(&socket_addr, size_factor);
-        let (finger_node_chord_positions, finger_node_socket_addrs) = FingerTable::get_finger_node_positions_and_addrs(
-            socket_addr,
+    pub fn new(this_node_socket_addr: SocketAddr, peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> Result<Self> {
+        let finger_start_positions: Vec<u32> = FingerTable::get_finger_start_positions(&this_node_socket_addr, size_factor);
+        let (finger_node_positions, finger_node_socket_addrs) = FingerTable::get_finger_node_positions_and_addrs(
+            this_node_socket_addr,
             peer_socket_addrs,
-            finger_start_chord_positions.clone(),
+            finger_start_positions.clone(),
             size_factor
         );
 
         Ok(FingerTable {
-            finger_start_chord_positions: finger_start_chord_positions,
-            finger_node_chord_positions: finger_node_chord_positions,
-            finger_node_socket_addrs: finger_node_socket_addrs,
-            size_factor: size_factor
+            finger_start_positions: finger_start_positions,
+            finger_node_positions: finger_node_positions,
+            finger_node_socket_addrs: finger_node_socket_addrs
         })
     }
 
@@ -48,11 +46,11 @@ impl FingerTable {
     }
 
     fn get_start_position(&self, finger_index: usize) -> u32 {
-        self.finger_start_chord_positions[finger_index]
+        self.finger_start_positions[finger_index]
     }
 
     fn get_finger_table_size(&self) -> usize {
-        self.finger_start_chord_positions.len()
+        self.finger_start_positions.len()
     }
 
     // TODO Implement function to find the first node greater than or equal to the given finger
@@ -63,18 +61,19 @@ impl FingerTable {
 
     // Static functions
     fn get_finger_start_positions(node_socket_addr: &SocketAddr, size_factor: usize) -> Vec<u32> {
-        let mut finger_start_chord_positions: Vec<u32> = Vec::new();
+        let mut finger_start_positions: Vec<u32> = Vec::new();
 
-        let node_position: u32 = FingerTable::calculate_member_position_from_address(node_socket_addr, size_factor);
-        finger_start_chord_positions.push(node_position);
+        // The first finger has its start position the same as this node's position
+        let first_finger_position: u32 = FingerTable::calculate_node_position_from_address(node_socket_addr, size_factor);
+        finger_start_positions.push(first_finger_position);
 
-        // Start at index 1 because position 0 was already calculated
+        // Now, get the start position for the rest of the fingers
         for finger_index in 1..size_factor {
-            let next_position: u32 = FingerTable::calculate_start_position(node_position, finger_index, size_factor);
-            finger_start_chord_positions.push(next_position);
+            let finger_start_position: u32 = FingerTable::calculate_start_position(first_finger_position, finger_index, size_factor);
+            finger_start_positions.push(finger_start_position);
         }
 
-        finger_start_chord_positions
+        finger_start_positions
     }
 
     fn get_finger_node_positions_and_addrs(node_socket_addr: SocketAddr,
@@ -117,7 +116,7 @@ impl FingerTable {
         // in the scenario the IP address changes.
         let mut peer_positions: Vec<u32> = Vec::new();
         for peer_addr in peer_socket_addrs.iter() {
-            let peer_position: u32 = FingerTable::calculate_member_position_from_address(peer_addr, size_factor);
+            let peer_position: u32 = FingerTable::calculate_node_position_from_address(peer_addr, size_factor);
             peer_positions.push(peer_position);
         }
 
@@ -130,7 +129,7 @@ impl FingerTable {
         (sorted_peer_positions, sorted_peer_socket_addrs)
     }
 
-    fn calculate_member_position_from_address(socket_addr: &SocketAddr, size_factor: usize) -> u32 {
+    fn calculate_node_position_from_address(socket_addr: &SocketAddr, size_factor: usize) -> u32 {
         // FIXME: May need to distinguish between local IP and public IP for the socket address
         // of the current node to ensure that the hashing of each node remains consistent
         // across all nodes. For now, assuming they will always be on local host.
@@ -140,17 +139,17 @@ impl FingerTable {
         let socket_addr_hash_as_uint: u128 = u128::from_be_bytes(socket_addr_hash);
 
         const BASE: i32 = 2;
-        let max_key_plus_one: u128 = BASE.pow(size_factor as u32) as u128;
+        let max_position_plus_one: u128 = BASE.pow(size_factor as u32) as u128;
 
         // FIXME: This restricts the size factor to have a max of 32, any larger will truncate
         // calculated node positions. Might need to fix this later.
-        (socket_addr_hash_as_uint % max_key_plus_one) as u32
+        (socket_addr_hash_as_uint % max_position_plus_one) as u32
     }
 
     fn calculate_start_position(first_finger_position: u32, finger_index: usize, size_factor: usize) -> u32 {
         const BASE: i32 = 2;
         let offset_from_first_finger: u32 = BASE.pow(finger_index as u32) as u32;
-        let max_key_plus_one: u32 = BASE.pow(size_factor as u32) as u32;
-        (first_finger_position + offset_from_first_finger) % max_key_plus_one
+        let max_position_plus_one: u32 = BASE.pow(size_factor as u32) as u32;
+        (first_finger_position + offset_from_first_finger) % max_position_plus_one
     }
 }

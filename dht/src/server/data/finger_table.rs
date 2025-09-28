@@ -9,6 +9,11 @@ pub struct FingerTable {
     finger_node_socket_addrs: Vec<SocketAddr>
 }
 
+/* TODO Functions to implement for later iterations:
+    - Function to find the node predecessor
+    - Function(s) to update the finger table based on node joins and leaves
+*/
+
 impl FingerTable {
     pub fn new(this_node_socket_addr: SocketAddr, peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> Result<Self> {
         let finger_start_positions: Vec<u32> = FingerTable::get_finger_start_positions(&this_node_socket_addr, size_factor);
@@ -25,6 +30,9 @@ impl FingerTable {
             finger_node_socket_addrs: finger_node_socket_addrs
         })
     }
+
+    // Public functions
+    // TODO Implement function to find which node a key should go to
 
     // Private functions
     fn get_position_interval(&self, finger_index: usize) -> [u32; 2] {
@@ -66,8 +74,6 @@ impl FingerTable {
     fn get_finger_table_size(&self) -> usize {
         self.finger_start_positions.len()
     }
-
-    // TODO Implement function to find the predecessor
 
     // Static functions
     fn get_finger_start_positions(node_socket_addr: &SocketAddr, size_factor: usize) -> Vec<u32> {

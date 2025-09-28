@@ -1,11 +1,12 @@
-use std::{collections::HashMap, io::Result};
+use std::io::Result;
 use std::net::SocketAddr;
 
 use crate::util;
 
 pub struct FingerTable {
     finger_start_chord_positions: Vec<u32>,
-    membership_list: HashMap<SocketAddr, u32>,
+    finger_node_chord_positions: Vec<u32>,
+    finger_node_socket_addrs: Vec<SocketAddr>,
     size_factor: usize
 }
 
@@ -23,17 +24,22 @@ impl FingerTable {
             finger_start_chord_positions.push(next_position);
         }
 
-        // TODO: Instead of storing the membership list, use the initial list to get the successors of each finger
+        let (sorted_peer_positions, sorted_peer_socket_addrs) = FingerTable::get_sorted_peer_positions_and_addrs(peer_socket_addrs, size_factor);
+        let (finger_node_chord_positions, finger_node_socket_addrs) = FingerTable::get_finger_node_positions_and_addrs(
+            socket_addr,
+            node_position,
+            sorted_peer_positions,
+            sorted_peer_socket_addrs,
+            finger_start_chord_positions.clone(),
+            size_factor
+        );
 
-        // FIXME Should probably use a different server naming convention other than IP address
-        // in the scenario the IP address changes.
-        let mut membership_list: HashMap<SocketAddr, u32> = HashMap::new();
-        for peer_addr in peer_socket_addrs.iter() {
-            let peer_position: u32 = FingerTable::calculate_member_position_from_address(peer_addr, size_factor);
-            membership_list.insert(socket_addr, peer_position);
-        }
-
-        Ok(FingerTable { finger_start_chord_positions: finger_start_chord_positions, membership_list: membership_list, size_factor: size_factor })
+        Ok(FingerTable {
+            finger_start_chord_positions: finger_start_chord_positions,
+            finger_node_chord_positions: finger_node_chord_positions,
+            finger_node_socket_addrs: finger_node_socket_addrs,
+            size_factor: size_factor
+        })
     }
 
     // Private functions
@@ -70,6 +76,58 @@ impl FingerTable {
     // TODO Implement function to find the predecessor
 
     // Static functions
+    fn get_sorted_peer_positions_and_addrs(peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
+        // FIXME Should probably use a different server naming convention other than IP address
+        // in the scenario the IP address changes.
+        let mut peer_positions: Vec<u32> = Vec::new();
+        for peer_addr in peer_socket_addrs.iter() {
+            let peer_position: u32 = FingerTable::calculate_member_position_from_address(peer_addr, size_factor);
+            peer_positions.push(peer_position);
+        }
+
+        let mut indices: Vec<usize> = (0..peer_positions.len()).collect();
+        indices.sort_by_key(|&i| peer_positions[i]);
+
+        let sorted_peer_positions: Vec<u32> = indices.iter().map(|&i| peer_positions[i]).collect();
+        let sorted_peer_socket_addrs: Vec<SocketAddr> = indices.iter().map(|&i| peer_socket_addrs[i]).collect();
+
+        (sorted_peer_positions, sorted_peer_socket_addrs)
+    }
+
+    fn get_finger_node_positions_and_addrs(node_socket_addr: SocketAddr,
+        node_position: u32,
+        peer_positions: Vec<u32>,
+        peer_socket_addrs: Vec<SocketAddr>,
+        finger_start_positions: Vec<u32>,
+        size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
+
+        let mut finger_node_positions: Vec<u32> = Vec::new();
+        let mut finger_node_addrs: Vec<SocketAddr> = Vec::new();
+
+        // The first finger is this node
+        finger_node_positions.push(node_position);
+        finger_node_addrs.push(node_socket_addr);
+
+        // Now, find the rest of the fingers
+        let mut finger_index: usize = 1;
+        let mut peer_index: usize = 0;
+
+        while (finger_index < finger_start_positions.len()) && (peer_index < peer_positions.len()) {
+            let finger_start_position: u32 = finger_node_positions[finger_index];
+            let peer_position: u32 = peer_positions[peer_index];
+
+            if peer_position >= finger_start_position {
+                finger_node_positions.push(peer_position);
+                finger_node_addrs.push(peer_socket_addrs[peer_index]);
+                finger_index += 1;
+            }
+
+            peer_index += 1;
+        }
+
+        (finger_node_positions, finger_node_addrs)
+    }
+
     fn calculate_member_position_from_address(socket_addr: &SocketAddr, size_factor: usize) -> u32 {
         // FIXME: May need to distinguish between local IP and public IP for the socket address
         // of the current node to ensure that the hashing of each node remains consistent

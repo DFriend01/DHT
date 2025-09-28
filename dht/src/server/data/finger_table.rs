@@ -16,8 +16,8 @@ pub struct FingerTable {
 
 impl FingerTable {
     pub fn new(this_node_socket_addr: SocketAddr, peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> Result<Self> {
-        let finger_start_positions: Vec<u32> = FingerTable::get_finger_start_positions(&this_node_socket_addr, size_factor);
-        let (finger_node_positions, finger_node_socket_addrs) = FingerTable::get_finger_node_positions_and_addrs(
+        let finger_start_positions: Vec<u32> = FingerTable::calculate_start_positions(&this_node_socket_addr, size_factor);
+        let (finger_node_positions, finger_node_socket_addrs) = FingerTable::calculate_node_positions_and_addrs(
             this_node_socket_addr,
             peer_socket_addrs,
             finger_start_positions.clone(),
@@ -33,6 +33,17 @@ impl FingerTable {
 
     // Public functions
     // TODO Implement function to find which node a key should go to
+    pub fn get_finger_start_positions(&self) -> Vec<u32> {
+        self.finger_node_positions.clone()
+    }
+
+    pub fn get_finger_node_positions(&self) -> Vec<u32> {
+        self.finger_node_positions.clone()
+    }
+
+    pub fn get_finger_node_socket_addrs(&self) -> Vec<SocketAddr> {
+        self.finger_node_socket_addrs.clone()
+    }
 
     // Private functions
     fn get_position_interval(&self, finger_index: usize) -> [u32; 2] {
@@ -76,7 +87,7 @@ impl FingerTable {
     }
 
     // Static functions
-    fn get_finger_start_positions(node_socket_addr: &SocketAddr, size_factor: usize) -> Vec<u32> {
+    fn calculate_start_positions(node_socket_addr: &SocketAddr, size_factor: usize) -> Vec<u32> {
         let mut finger_start_positions: Vec<u32> = Vec::new();
 
         // The first finger has its start position the same as this node's position
@@ -92,12 +103,12 @@ impl FingerTable {
         finger_start_positions
     }
 
-    fn get_finger_node_positions_and_addrs(node_socket_addr: SocketAddr,
+    fn calculate_node_positions_and_addrs(node_socket_addr: SocketAddr,
         peer_socket_addrs: Vec<SocketAddr>,
         finger_start_positions: Vec<u32>,
         size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
 
-        let (sorted_peer_positions, sorted_peer_socket_addrs) = FingerTable::get_sorted_peer_positions_and_addrs(peer_socket_addrs, size_factor);
+        let (sorted_peer_positions, sorted_peer_socket_addrs) = FingerTable::calculate_sorted_peer_positions_and_addrs(peer_socket_addrs, size_factor);
 
         let mut finger_node_positions: Vec<u32> = Vec::new();
         let mut finger_node_addrs: Vec<SocketAddr> = Vec::new();
@@ -127,7 +138,7 @@ impl FingerTable {
         (finger_node_positions, finger_node_addrs)
     }
 
-    fn get_sorted_peer_positions_and_addrs(peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
+    fn calculate_sorted_peer_positions_and_addrs(peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
         // FIXME Should probably use a different server naming convention other than IP address
         // in the scenario the IP address changes.
         let mut peer_positions: Vec<u32> = Vec::new();
@@ -167,5 +178,31 @@ impl FingerTable {
         let offset_from_first_finger: u32 = BASE.pow(finger_index as u32) as u32;
         let max_position_plus_one: u32 = BASE.pow(size_factor as u32) as u32;
         (first_finger_position + offset_from_first_finger) % max_position_plus_one
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    #[test]
+    fn test_single_node() {
+        let node_addr: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+        let peer_addrs: Vec<SocketAddr> = Vec::new();
+        const SIZE_FACTOR: usize = 1;
+
+        let finger_table: FingerTable = FingerTable::new(node_addr, peer_addrs, SIZE_FACTOR).unwrap();
+
+        let finger_start_positions: Vec<u32> = finger_table.get_finger_start_positions();
+        assert_eq!(finger_start_positions.len(), 1);
+
+        let finger_node_positions: Vec<u32> = finger_table.get_finger_node_positions();
+        assert_eq!(finger_node_positions.len(), 1);
+        assert_eq!(finger_start_positions, finger_node_positions);
+
+        let finger_node_addrs: Vec<SocketAddr> = finger_table.get_finger_node_socket_addrs();
+        assert_eq!(finger_node_addrs.len(), 1);
+        assert_eq!(finger_node_addrs[0], node_addr);
     }
 }

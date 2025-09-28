@@ -158,7 +158,7 @@ impl FingerTable {
         let max_position_plus_one: u128 = BASE.pow(size_factor as u32) as u128;
 
         // FIXME: This restricts the size factor to have a max of 32, any larger will truncate
-        // calculated node positions. Might need to fix this later.
+        // calculated key/node positions. Might need to fix this later.
         (socket_addr_hash_as_uint % max_position_plus_one) as u32
     }
 

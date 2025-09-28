@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use crate::util;
 
 pub struct FingerTable {
-    finger_positions: Vec<u32>,
+    finger_start_chord_positions: Vec<u32>,
     membership_list: HashMap<SocketAddr, u32>,
     size_factor: usize
 }
@@ -12,19 +12,19 @@ pub struct FingerTable {
 impl FingerTable {
     pub fn new(socket_addr: SocketAddr, peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> Result<Self> {
 
-        let mut finger_positions: Vec<u32> = Vec::new();
+        let mut finger_start_chord_positions: Vec<u32> = Vec::new();
 
         let node_position: u32 = FingerTable::calculate_member_position_from_address(&socket_addr, size_factor);
-        finger_positions.push(node_position);
+        finger_start_chord_positions.push(node_position);
 
         // Start at index 1 because position 0 was already calculated
         for finger_index in 1..size_factor {
             let next_position: u32 = FingerTable::calculate_start_position(node_position, finger_index, size_factor);
-            finger_positions.push(next_position);
+            finger_start_chord_positions.push(next_position);
         }
 
         // TODO: Instead of storing the membership list, use the initial list to get the successors of each finger
-        
+
         // FIXME Should probably use a different server naming convention other than IP address
         // in the scenario the IP address changes.
         let mut membership_list: HashMap<SocketAddr, u32> = HashMap::new();
@@ -33,7 +33,7 @@ impl FingerTable {
             membership_list.insert(socket_addr, peer_position);
         }
 
-        Ok(FingerTable { finger_positions: finger_positions, membership_list: membership_list, size_factor: size_factor })
+        Ok(FingerTable { finger_start_chord_positions: finger_start_chord_positions, membership_list: membership_list, size_factor: size_factor })
     }
 
     // Private functions
@@ -56,11 +56,11 @@ impl FingerTable {
     }
 
     fn get_start_position(&self, finger_index: usize) -> u32 {
-        self.finger_positions[finger_index]
+        self.finger_start_chord_positions[finger_index]
     }
 
     fn get_finger_table_size(&self) -> usize {
-        self.finger_positions.len()
+        self.finger_start_chord_positions.len()
     }
 
     // TODO Implement function to find the first node greater than or equal to the given finger

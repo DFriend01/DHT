@@ -16,6 +16,13 @@ pub struct FingerTable {
 
 impl FingerTable {
     pub fn new(this_node_socket_addr: SocketAddr, peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> Result<Self> {
+
+        const BASE: i32 = 2;
+        assert!(
+            peer_socket_addrs.len() + 1 <= BASE.pow(size_factor as u32) as usize,
+            "The underlying chord structure does not have enough space for all nodes"
+        );
+
         let finger_start_positions: Vec<u32> = FingerTable::calculate_start_positions(&this_node_socket_addr, size_factor);
         let (finger_node_positions, finger_node_socket_addrs) = FingerTable::calculate_node_positions_and_addrs(
             this_node_socket_addr,

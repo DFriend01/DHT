@@ -1,4 +1,4 @@
-use std::io::Result;
+use std::io::{Result, Error, ErrorKind};
 use std::net::SocketAddr;
 
 use crate::util;
@@ -39,7 +39,31 @@ impl FingerTable {
     }
 
     // Public functions
-    // TODO Implement function to find which node a key should go to
+    pub fn map_key_to_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
+        let key_hash: u32 = self.calculate_key_hash(key.clone())?;
+        if key_hash == self.get_position_of_this_node() {
+            return Ok(self.get_addr_of_this_node())
+        }
+
+        let index_of_nearest_finger: usize = self.find_nearest_finger(key.clone())?;
+        if key_hash == self.get_node_position(index_of_nearest_finger) {
+            return Ok(self.get_node_address(index_of_nearest_finger))
+        }
+
+        // TODO Search for the key's owner in the finger tables of other nodes
+        Ok(self.get_addr_of_this_node()) // Placeholder return value for now
+    }
+
+    pub fn find_nearest_finger(&self, key: Vec<u8>) -> Result<usize> {
+        let key_position: u32 = self.calculate_key_hash(key)?;
+        for finger_index in (0..self.get_finger_table_size()).rev() {
+            if self.is_key_in_finger_interval(key_position, finger_index) {
+                return Ok(finger_index)
+            }
+        }
+        Err(Error::new(ErrorKind::NotFound, "Nearest finger not found, but we should not be seeing this message..."))
+    }
+
     pub fn get_finger_start_positions(&self) -> Vec<u32> {
         self.finger_node_positions.clone()
     }
@@ -53,6 +77,19 @@ impl FingerTable {
     }
 
     // Private functions
+    fn is_key_in_finger_interval(&self, key_position: u32, finger_index: usize) -> bool {
+        let finger_interval: [u32; 2] = self.get_position_interval(finger_index);
+        let start: u32 = finger_interval[0];
+        let end: u32 = finger_interval[1];
+        if start == end {
+            key_position == start
+        } else if start < end {
+            (key_position >= start) && (key_position < end)
+        } else {
+            ((key_position >= start) && (key_position <= self.get_max_position())) || (key_position < end)
+        }
+    }
+
     fn get_position_interval(&self, finger_index: usize) -> [u32; 2] {
         let next_finger_index: usize = (finger_index + 1) % self.get_finger_table_size();
 
@@ -70,6 +107,11 @@ impl FingerTable {
     fn get_position_of_this_node(&self) -> u32 {
         const FIRST_FINGER: usize = 0;
         self.get_start_position(FIRST_FINGER)
+    }
+
+    fn get_addr_of_this_node(&self) -> SocketAddr {
+        const FIRST_FINGER: usize = 0;
+        self.get_node_address(FIRST_FINGER)
     }
 
     fn get_start_position(&self, finger_index: usize) -> u32 {
@@ -91,6 +133,26 @@ impl FingerTable {
 
     fn get_finger_table_size(&self) -> usize {
         self.finger_start_positions.len()
+    }
+
+    fn calculate_key_hash(&self, key: impl AsRef<[u8]>) -> Result<u32> {
+        let hash: [u8; 16] = match util::hash_md5(key) {
+            Ok(hash) => hash,
+            Err(_e) => {
+                return Err(Error::new(ErrorKind::Other, "Hash failed"))
+            }
+        };
+
+        let hash_uint: u128 = u128::from_be_bytes(hash);
+        let max_position_plus_one: u128 = (self.get_max_position() as u128) + 1;
+        Ok((hash_uint % max_position_plus_one) as u32)
+    }
+
+    fn get_max_position(&self) -> u32 {
+        const BASE: i32 = 2;
+        let size_factor: usize = self.get_finger_table_size();
+        let max_position_plus_one: u128 = BASE.pow(size_factor as u32) as u128;
+        (max_position_plus_one - 1) as u32
     }
 
     // Static functions
@@ -211,5 +273,20 @@ mod tests {
         let finger_node_addrs: Vec<SocketAddr> = finger_table.get_finger_node_socket_addrs();
         assert_eq!(finger_node_addrs.len(), 1);
         assert_eq!(finger_node_addrs[0], node_addr);
+    }
+
+    #[test]
+    fn test_multiple_nodes() {
+        let node_addr: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+        let mut peer_addrs: Vec<SocketAddr> = Vec::new();
+
+        const NUM_PEERS: usize = 10;
+        for i in 0..NUM_PEERS {
+            let peer_addr: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+            peer_addrs.push(peer_addr);
+        }
+
+        const SIZE_FACTOR: usize = 8;
+        let finger_table: FingerTable = FingerTable::new(node_addr, peer_addrs, SIZE_FACTOR).unwrap();
     }
 }

@@ -151,6 +151,8 @@ impl FingerTable {
     fn get_max_position(&self) -> u32 {
         const BASE: i32 = 2;
         let size_factor: usize = self.get_finger_table_size();
+
+        // Need to be careful about truncation here by limiting the size factor...
         let max_position_plus_one: u128 = BASE.pow(size_factor as u32) as u128;
         (max_position_plus_one - 1) as u32
     }

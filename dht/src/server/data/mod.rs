@@ -11,6 +11,7 @@ use protobuf::Message;
 use crate::comm::ProtoInterface;
 use crate::comm::proto::{Operation, Status, extract_request};
 use crate::comm::protogen::api::{UDPMessage, Request, Reply};
+use crate::server::data::finger_table::FingerTable;
 
 mod finger_table;
 
@@ -21,16 +22,16 @@ pub struct Node {
     proto_interface: ProtoInterface,
     data_store: HashMap<Vec<u8>, Vec<u8>>,
     request_cache: Cache<Vec<u8>, Vec<u8>>,
+    finger_table: FingerTable,
     id: u32,
     max_mem: u64,
-    chord_sizing_factor: u32,
     process_id: u32,
     data_store_mem_usage: u64,
     should_keep_running: bool,
 }
 
 impl Node {
-    pub fn new(socket_addr: SocketAddr, id: u32, max_mem_mb: u32, chord_sizing_factor: u32) -> Result<Self> {
+    pub fn new(socket_addr: SocketAddr, id: u32, max_mem_mb: u32, chord_sizing_factor: usize) -> Result<Self> {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
         let max_mem_bytes: u64 = (max_mem_mb as u64) * 1024 * 1024;
@@ -40,14 +41,15 @@ impl Node {
             .time_to_idle(std::time::Duration::from_secs(1))
             .weigher(|k: &Vec<u8>, v: &Vec<u8>| (k.len() + v.len()) as u32)
             .build();
+        let finger_table: FingerTable = FingerTable::new(socket_addr, Vec::new(), chord_sizing_factor)?;
 
         Ok(Node {
             proto_interface,
             data_store,
             request_cache,
+            finger_table,
             id,
             max_mem: max_mem_bytes,
-            chord_sizing_factor: chord_sizing_factor,
             process_id: process_id,
             data_store_mem_usage: 0,
             should_keep_running: true,

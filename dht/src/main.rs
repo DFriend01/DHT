@@ -37,7 +37,7 @@ impl std::fmt::Display for Args {
 struct Config {
     log_level: String,
     max_memory_mb: u32,
-    chord_sizing_factor: u32
+    chord_sizing_factor: usize
 }
 
 impl Config {

@@ -31,7 +31,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(socket_addr: SocketAddr, max_mem_mb: u32, chord_sizing_factor: usize) -> Result<Self> {
+    pub fn new(socket_addr: SocketAddr, peer_addresses: Vec<SocketAddr>, max_mem_mb: u32, chord_sizing_factor: usize) -> Result<Self> {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
         let max_mem_bytes: u64 = (max_mem_mb as u64) * 1024 * 1024;
@@ -41,7 +41,7 @@ impl Node {
             .time_to_idle(std::time::Duration::from_secs(1))
             .weigher(|k: &Vec<u8>, v: &Vec<u8>| (k.len() + v.len()) as u32)
             .build();
-        let finger_table: FingerTable = FingerTable::new(socket_addr, Vec::new(), chord_sizing_factor)?;
+        let finger_table: FingerTable = FingerTable::new(socket_addr, peer_addresses, chord_sizing_factor)?;
 
         Ok(Node {
             proto_interface,

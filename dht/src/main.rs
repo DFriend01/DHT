@@ -88,10 +88,12 @@ fn main() {
         }
     };
 
+    let peer_addresses: Vec<SocketAddr> = parse_peer_addresses(cli_args.peer_addresses.as_str());
+
     log::set_max_level(log_level);
     init_logger(log_level, server_addr);
 
-    let mut server: Node = match Node::new(server_addr, config.max_memory_mb, config.chord_sizing_factor) {
+    let mut server: Node = match Node::new(server_addr, peer_addresses, config.max_memory_mb, config.chord_sizing_factor) {
         Ok(node) => node,
         Err(e) => {
             eprintln!("Failed to create server: {}", e);
@@ -104,4 +106,25 @@ fn main() {
     log::info!("Server bound to address {}", server_addr.to_string());
 
     let _ = server.run();
+}
+
+fn parse_peer_addresses(peer_address_arg: &str) -> Vec<SocketAddr> {
+    let mut parsed_peer_addresses: Vec<SocketAddr> = Vec::new();
+    if peer_address_arg.is_empty() {
+        return parsed_peer_addresses
+    }
+
+    for address in peer_address_arg.split(",") {
+        let parsed_address: SocketAddr = match address.parse() {
+            Ok(parsed_address) => parsed_address,
+            Err(_) => {
+                panic!("Unable to parse address {}. \
+                    Ensure that peer addresses are passed as a comma-separated \
+                    list of socket addresses formatted as <IP>:<PORT>", address);
+            }
+        };
+        parsed_peer_addresses.push(parsed_address);
+    }
+
+    parsed_peer_addresses
 }

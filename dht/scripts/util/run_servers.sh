@@ -39,10 +39,6 @@ function start_servers() {
         done
 
         local CONCATENATED_PEERS="$(IFS=,; echo "${PEERS[*]}")"
-
-        echo $SERVER
-        echo $CONCATENATED_PEERS
-
         ${SCRIPT_DIR}/start_node.sh ${PORT} ${CONCATENATED_PEERS} ${VM_LIMIT_B}
     done
 }

@@ -20,10 +20,10 @@ const MAX_VALUE_PAYLOAD_SIZE_BYTES: usize = 1024 * 10;
 
 pub struct Node {
     proto_interface: ProtoInterface,
+    server_address: SocketAddr,
     data_store: HashMap<Vec<u8>, Vec<u8>>,
     request_cache: Cache<Vec<u8>, Vec<u8>>,
     finger_table: FingerTable,
-    id: u32,
     max_mem: u64,
     process_id: u32,
     data_store_mem_usage: u64,
@@ -31,7 +31,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(socket_addr: SocketAddr, id: u32, max_mem_mb: u32, chord_sizing_factor: usize) -> Result<Self> {
+    pub fn new(socket_addr: SocketAddr, max_mem_mb: u32, chord_sizing_factor: usize) -> Result<Self> {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket_addr)?;
         let data_store: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
         let max_mem_bytes: u64 = (max_mem_mb as u64) * 1024 * 1024;
@@ -45,10 +45,10 @@ impl Node {
 
         Ok(Node {
             proto_interface,
+            server_address: socket_addr,
             data_store,
             request_cache,
             finger_table,
-            id,
             max_mem: max_mem_bytes,
             process_id: process_id,
             data_store_mem_usage: 0,
@@ -57,7 +57,7 @@ impl Node {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        log::info!("Server N{} starting up...", self.id);
+        log::info!("Server {} starting up...", self.server_address.to_string());
 
         while self.should_keep_running {
             let (msg, sender_addr) = match self.proto_interface.listen() {
@@ -97,7 +97,7 @@ impl Node {
             log::error!("Node run loop exited unexpectedly");
             Err(Error::new(ErrorKind::Other, "Node run loop exited unexpectedly"))
         } else {
-            log::info!("Server N{} shutting down...", self.id);
+            log::info!("Server {} shutting down...", self.server_address.to_string());
             Ok(())
         }
     }

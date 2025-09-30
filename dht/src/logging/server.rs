@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use chrono::Utc;
 use log::LevelFilter;
 use log4rs::append::console::ConsoleAppender;
@@ -5,11 +6,11 @@ use log4rs::append::file::FileAppender;
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::config::{Appender, Config, Root};
 
-pub fn init_logger(level: LevelFilter, server_id: u32) {
+pub fn init_logger(level: LevelFilter, server_addr: SocketAddr) {
     // Pattern
     let pattern: String = format!(
-        "[{{d(%Y-%m-%d %H:%M:%S %Z)(utc)}} - {{l}} - N{}] {{m}}{{n}}",
-        server_id
+        "[{{d(%Y-%m-%d %H:%M:%S %Z)(utc)}} - {{l}} - {}] {{m}}{{n}}",
+        server_addr.to_string()
     );
     let pattern_colored = "{h(".to_owned() + &pattern + ")}";
     let date_now: String = Utc::now().format("%Y-%m-%d_%H:%M:%S").to_string();
@@ -20,7 +21,7 @@ pub fn init_logger(level: LevelFilter, server_id: u32) {
         .build();
     let logfile = FileAppender::builder()
         .encoder(Box::new(PatternEncoder::new(&pattern)))
-        .build(format!("log/N{}_{}.log", server_id, date_now))
+        .build(format!("log/N{}_{}.log", server_addr.to_string(), date_now))
         .unwrap();
 
     // Initialize the loggers

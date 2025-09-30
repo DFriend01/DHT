@@ -17,18 +17,18 @@ pub mod util;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    // Port to listen on
-    #[arg(short, long, default_value = "8080")]
+    // The port that this node uses as the service port
+    #[arg(long, default_value = "8080")]
     port: u16,
 
-    // Server ID
-    #[arg(short, long, default_value = "0")]
-    server_id: u32
+    // Commas-separated string of socket addresses for each of the peers in the network at startup
+    #[arg(long, default_value = "")]
+    peer_addresses: String
 }
 
 impl std::fmt::Display for Args {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Args {{ port: {}, server_id: {} }}", self.port, self.server_id)
+        write!(f, "Args {{ port: {}, peer_addresses: {} }}", self.port, self.peer_addresses)
     }
 }
 
@@ -89,9 +89,9 @@ fn main() {
     };
 
     log::set_max_level(log_level);
-    init_logger(log_level, cli_args.server_id);
+    init_logger(log_level, server_addr);
 
-    let mut server: Node = match Node::new(server_addr, cli_args.server_id, config.max_memory_mb, config.chord_sizing_factor) {
+    let mut server: Node = match Node::new(server_addr, config.max_memory_mb, config.chord_sizing_factor) {
         Ok(node) => node,
         Err(e) => {
             eprintln!("Failed to create server: {}", e);
@@ -101,7 +101,7 @@ fn main() {
 
     log::info!("{}", cli_args);
     log::info!("{}", config);
-    log::info!("Server N{} bound to address {}", cli_args.server_id, server_addr);
+    log::info!("Server bound to address {}", server_addr.to_string());
 
     let _ = server.run();
 }

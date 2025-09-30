@@ -30,7 +30,20 @@ function start_servers() {
     for ((i=0; i<SERVERS_COUNT; i++)); do
         local SERVER=${SERVERS[$i]}
         local PORT=$(echo $SERVER | cut -d':' -f2)
-        ${SCRIPT_DIR}/start_node.sh ${PORT} ${i} ${VM_LIMIT_B}
+
+        local PEERS=()
+        for ((j=0; j<SERVERS_COUNT; j++)); do
+            if [[ ${j} -ne ${i} ]]; then
+                PEERS+=("${SERVERS[${j}]}")
+            fi
+        done
+
+        local CONCATENATED_PEERS="$(IFS=,; echo "${PEERS[*]}")"
+
+        echo $SERVER
+        echo $CONCATENATED_PEERS
+
+        ${SCRIPT_DIR}/start_node.sh ${PORT} ${CONCATENATED_PEERS} ${VM_LIMIT_B}
     done
 }
 

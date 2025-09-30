@@ -1,6 +1,9 @@
 use std::io::{Result, Error, ErrorKind};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 
+use crate::comm::proto::{extract_reply, Operation, Status};
+use crate::comm::protogen::api::{NearestNodeSearchResults, Request, Reply};
+use crate::comm::ProtoInterface;
 use crate::util;
 
 pub struct FingerTable {
@@ -42,16 +45,10 @@ impl FingerTable {
     pub fn map_key_to_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
         let key_hash: u32 = self.calculate_key_hash(key.clone())?;
         if key_hash == self.get_position_of_this_node() {
-            return Ok(self.get_addr_of_this_node())
+            Ok(self.get_addr_of_this_node())
+        } else {
+            self.map_node_to_peer_node(key.clone())
         }
-
-        let index_of_nearest_finger: usize = self.find_nearest_finger(key.clone())?;
-        if key_hash == self.get_node_position(index_of_nearest_finger) {
-            return Ok(self.get_node_address(index_of_nearest_finger))
-        }
-
-        // TODO Search for the key's owner in the finger tables of other nodes
-        Ok(self.get_addr_of_this_node()) // Placeholder return value for now
     }
 
     pub fn find_nearest_finger(&self, key: Vec<u8>) -> Result<usize> {
@@ -77,6 +74,58 @@ impl FingerTable {
     }
 
     // Private functions
+    fn map_node_to_peer_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
+
+        // Check the finger table in this node first
+        let key_hash: u32 = self.calculate_key_hash(key.clone())?;
+        let index_of_nearest_finger: usize = self.find_nearest_finger(key.clone())?;
+        if key_hash == self.get_node_position(index_of_nearest_finger) {
+            return Ok(self.get_node_address(index_of_nearest_finger))
+        }
+
+        // Use the finger tables from other nodes to map the key.
+        // The most hops we would ever need to make in an N-node network is
+        // O(log N). Since we do not always know the number of nodes,
+        // we use the size of the chord: log(2 ^ finger_table_size) = finger_table_size
+        // as an upper bound.
+        let max_node_hops: usize = self.get_finger_table_size();
+
+        let socket: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+        let proto_interface: ProtoInterface = ProtoInterface::new(socket)?;
+
+        let mut next_peer_addr: SocketAddr = self.get_node_address(index_of_nearest_finger);
+        for _ in 0..max_node_hops {
+            let mut search_request: Request = Request::new();
+            search_request.operation = Operation::GetNearestNodeToKey as u32;
+            search_request.key = Some(key.clone());
+
+            let (reply_msg, _server_socket) = proto_interface.send_and_recv(search_request, next_peer_addr)?;
+            let reply: Reply = extract_reply(&reply_msg)?;
+
+            if reply.status != Status::Success as u32 {
+                break;
+            }
+
+            let results: NearestNodeSearchResults = match reply.search_results.into_option() {
+                Some(search_results) => search_results,
+                None => break
+            };
+
+            let nearest_node_addr: SocketAddr = match results.node_address.parse() {
+                Ok(address) => address,
+                Err(_) => break
+            };
+
+            if results.node_position == key_hash {
+                return Ok(nearest_node_addr)
+            } else {
+                next_peer_addr = nearest_node_addr;
+            }
+        }
+
+        Err(Error::new(ErrorKind::NotFound, "Node not found for key"))
+    }
+
     fn is_key_in_finger_interval(&self, key_position: u32, finger_index: usize) -> bool {
         let finger_interval: [u32; 2] = self.get_position_interval(finger_index);
         let start: u32 = finger_interval[0];
@@ -211,7 +260,8 @@ impl FingerTable {
 
     fn calculate_sorted_peer_positions_and_addrs(peer_socket_addrs: Vec<SocketAddr>, size_factor: usize) -> (Vec<u32>, Vec<SocketAddr>) {
         // FIXME Should probably use a different server naming convention other than IP address
-        // in the scenario the IP address changes.
+        // in the scenario the IP address changes. Also, how to handle name conflicts in the event
+        // that the name hash is the same?
         let mut peer_positions: Vec<u32> = Vec::new();
         for peer_addr in peer_socket_addrs.iter() {
             let peer_position: u32 = FingerTable::calculate_node_position_from_address(peer_addr, size_factor);

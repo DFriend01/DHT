@@ -1,5 +1,6 @@
 use std::io::{Result, Error, ErrorKind};
 use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use log;
 
 use crate::comm::proto::{extract_reply, Operation, Status};
 use crate::comm::protogen::api::{NearestNodeSearchResults, Request, Reply};
@@ -83,7 +84,9 @@ impl FingerTable {
 
     pub fn does_key_belong_to_this_node(&self, key: Vec<u8>) -> Result<bool> {
         let key_hash: u32 = self.calculate_key_hash(key)?;
-        Ok(key_hash == self.get_position_of_this_node())
+        let node_position: u32 = self.get_position_of_this_node();
+        log::debug!("Comparing Key Position: {}, Node Position: {}", key_hash, node_position);
+        Ok(key_hash == node_position)
     }
 
     // Private functions
@@ -107,11 +110,12 @@ impl FingerTable {
         let proto_interface: ProtoInterface = ProtoInterface::new(socket)?;
 
         let mut next_peer_addr: SocketAddr = self.get_node_address(index_of_nearest_finger);
-        for _ in 0..max_node_hops {
+        for hop in 0..max_node_hops {
             let mut search_request: Request = Request::new();
             search_request.operation = Operation::GetNearestNodeToKey as u32;
             search_request.key = Some(key.clone());
 
+            log::debug!("Hop {} in chord to map key to node, contacting node with address {}", hop + 1, next_peer_addr);
             let (reply_msg, _server_socket) = proto_interface.send_and_recv(search_request, next_peer_addr)?;
             let reply: Reply = extract_reply(&reply_msg)?;
 

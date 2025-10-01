@@ -204,17 +204,21 @@ impl Node {
         let key_belongs_to_this_node: bool = match self.finger_table.does_key_belong_to_this_node(key.clone()) {
             Ok(result) => result,
             Err(_) => {
+                log::debug!("PUT request unable to check if the key belongs to this node");
                 reply.status = Status::InternalError as u32;
                 return reply;
             }
         };
 
         if key_belongs_to_this_node {
+            log::debug!("Key belongs to this node, performing PUT request");
             reply.status = self.put_on_this_node(key, value);
         } else {
+            log:: debug!("Key belongs to another node, performing search...");
             let peer_reply: Reply = match self.redirect_request(key, request) {
                 Ok(reply) => reply,
                 Err(_) => {
+                    log::error!("Unable to redirect PUT request to peer");
                     reply.status = Status::InternalError as u32;
                     return reply;
                 }

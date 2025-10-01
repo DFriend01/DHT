@@ -73,6 +73,14 @@ impl FingerTable {
         self.finger_node_socket_addrs.clone()
     }
 
+    pub fn get_node_position(&self, finger_index: usize) -> u32 {
+        self.finger_node_positions[finger_index]
+    }
+
+    pub fn get_node_address(&self, finger_index: usize) -> SocketAddr {
+        self.finger_node_socket_addrs[finger_index]
+    }
+
     // Private functions
     fn map_node_to_peer_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
 
@@ -167,13 +175,7 @@ impl FingerTable {
         self.finger_start_positions[finger_index]
     }
 
-    fn get_node_position(&self, finger_index: usize) -> u32 {
-        self.finger_node_positions[finger_index]
-    }
 
-    fn get_node_address(&self, finger_index: usize) -> SocketAddr {
-        self.finger_node_socket_addrs[finger_index]
-    }
 
     fn get_successor_position(&self) -> u32 {
         const SECOND_FINGER: usize = 1;

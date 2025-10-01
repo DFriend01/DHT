@@ -6,11 +6,11 @@ use std::collections::HashMap;
 use std::process;
 use log;
 use mini_moka::unsync::Cache;
-use protobuf::Message;
+use protobuf::{Message, MessageField};
 
 use crate::comm::ProtoInterface;
 use crate::comm::proto::{Operation, Status, extract_request};
-use crate::comm::protogen::api::{UDPMessage, Request, Reply};
+use crate::comm::protogen::api::{UDPMessage, Request, Reply, NearestNodeSearchResults};
 use crate::server::data::finger_table::FingerTable;
 
 mod finger_table;
@@ -159,6 +159,7 @@ impl Node {
             Ok(Operation::Ping) => self.handle_ping(),
             Ok(Operation::Shutdown) => self.handle_shutdown(),
             Ok(Operation::GetPid) => self.handle_getpid(),
+            Ok(Operation::GetNearestNodeToKey) => self.handle_get_nearest_node_to_key(request),
             _ => self.handle_undefined_operation(request.operation),
         };
 
@@ -322,6 +323,41 @@ impl Node {
         reply.status = Status::Success as u32;
         log::debug!("GETPID request Success");
         log::trace!("Exiting handle_getpid");
+        reply
+    }
+
+    fn handle_get_nearest_node_to_key(&self, request: Request) -> Reply {
+        let mut reply: Reply = Reply::new();
+
+        let key: Vec<u8> = match request.key {
+            Some(key) => key,
+            None => {
+                log::debug!("GETNEARESTNODETOKEY request MissingKey");
+                reply.status = Status::MissingKey as u32;
+                log::trace!("Exiting handle_get_nearest_node_to_key");
+                return reply;
+            }
+        };
+
+        let nearest_finger_index: usize = match self.finger_table.find_nearest_finger(key) {
+            Ok(finger_index) => finger_index,
+            Err(e) => {
+                log::error!("Unable to find nearest finger to key: {}", e);
+                reply.status = Status::InternalError as u32;
+                return reply
+            }
+        };
+
+        let nearest_node_position: u32 = self.finger_table.get_node_position(nearest_finger_index);
+        let nearest_node_address: SocketAddr = self.finger_table.get_node_address(nearest_finger_index);
+
+        let mut search_results: NearestNodeSearchResults = NearestNodeSearchResults::new();
+        search_results.node_position = nearest_node_position;
+        search_results.node_address = nearest_node_address.to_string();
+
+        reply.status = Status::Success as u32;
+        reply.search_results = MessageField::some(search_results);
+
         reply
     }
 

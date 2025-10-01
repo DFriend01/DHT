@@ -81,6 +81,11 @@ impl FingerTable {
         self.finger_node_socket_addrs[finger_index]
     }
 
+    pub fn does_key_belong_to_this_node(&self, key: Vec<u8>) -> Result<bool> {
+        let key_hash: u32 = self.calculate_key_hash(key)?;
+        Ok(key_hash == self.get_position_of_this_node())
+    }
+
     // Private functions
     fn map_node_to_peer_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
 
@@ -174,8 +179,6 @@ impl FingerTable {
     fn get_start_position(&self, finger_index: usize) -> u32 {
         self.finger_start_positions[finger_index]
     }
-
-
 
     fn get_successor_position(&self) -> u32 {
         const SECOND_FINGER: usize = 1;

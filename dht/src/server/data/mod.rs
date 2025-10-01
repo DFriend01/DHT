@@ -1,7 +1,7 @@
 #![allow(unreachable_code)]
 
 use std::io::{Result, Error, ErrorKind};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 use std::collections::HashMap;
 use std::process;
 use log;
@@ -9,7 +9,7 @@ use mini_moka::unsync::Cache;
 use protobuf::{Message, MessageField};
 
 use crate::comm::ProtoInterface;
-use crate::comm::proto::{Operation, Status, extract_request};
+use crate::comm::proto::{extract_reply, extract_request, Operation, Status};
 use crate::comm::protogen::api::{UDPMessage, Request, Reply, NearestNodeSearchResults};
 use crate::server::data::finger_table::FingerTable;
 
@@ -173,7 +173,7 @@ impl Node {
         let mut reply: Reply = Reply::new();
 
         let key: Vec<u8> = match request.key {
-            Some(key) => key,
+            Some(ref key) => key.to_vec(),
             None => {
                 log::debug!("PUT request MissingKey");
                 reply.status = Status::MissingKey as u32;
@@ -183,7 +183,7 @@ impl Node {
         };
 
         let value: Vec<u8> = match request.value {
-            Some(value) => value,
+            Some(ref value) => value.to_vec(),
             None => {
                 log::debug!("PUT request MissingValue");
                 reply.status = Status::MissingValue as u32;
@@ -201,19 +201,42 @@ impl Node {
             return reply;
         }
 
+        let key_belongs_to_this_node: bool = match self.finger_table.does_key_belong_to_this_node(key.clone()) {
+            Ok(result) => result,
+            Err(_) => {
+                reply.status = Status::InternalError as u32;
+                return reply;
+            }
+        };
+
+        if key_belongs_to_this_node {
+            reply.status = self.put_on_this_node(key, value);
+        } else {
+            let peer_reply: Reply = match self.redirect_request(key, request) {
+                Ok(reply) => reply,
+                Err(_) => {
+                    reply.status = Status::InternalError as u32;
+                    return reply;
+                }
+            };
+            reply.status = peer_reply.status;
+        }
+
+        log::trace!("Exiting handle_put");
+        reply
+    }
+
+    fn put_on_this_node(&mut self, key: Vec<u8>, value: Vec<u8>) -> u32 {
         let key_value_mem_usage: u64 = (key.len() as u64) + (value.len() as u64);
         if self.data_store_mem_usage + key_value_mem_usage <= self.max_mem {
             log::debug!("PUT request Success (key size: {}, value size: {})", key.len(), value.len());
             self.data_store.insert(key, value);
             self.data_store_mem_usage += key_value_mem_usage;
-            reply.status = Status::Success as u32;
+            Status::Success as u32
         } else {
             log::info!("PUT request unsuccessful, hit memory limit");
-            reply.status = Status::OutOfMemory as u32;
+            Status::OutOfMemory as u32
         }
-
-        log::trace!("Exiting handle_put");
-        reply
     }
 
     fn handle_get(&self, request: Request) -> Reply {
@@ -397,6 +420,14 @@ impl Node {
 
         log::trace!("Exiting cache_reply");
         Ok(())
+    }
+
+    fn redirect_request(&self, key: Vec<u8>, request: Request) -> Result<Reply> {
+        let peer_address: SocketAddr = self.finger_table.map_key_to_node(key)?;
+        let proto_socket: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+        let proto_interface: ProtoInterface = ProtoInterface::new(proto_socket)?;
+        let (reply_msg, _) = proto_interface.send_and_recv(request, peer_address)?;
+        extract_reply(&reply_msg)
     }
 
     fn get_current_memory_usage(&self) -> u64 {

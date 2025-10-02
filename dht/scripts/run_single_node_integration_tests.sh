@@ -12,6 +12,11 @@ sudo -v
 
 ${SCRIPT_DIR}/util/run_servers.sh "${NUM_NODES}" "${SERVER_LIST_FILE}"
 
+WAIT_TIME_SEC=10
+echo "Waiting for "${WAIT_TIME_SEC}" seconds to allow time for servers to start up before testing begins"
+sleep "${WAIT_TIME_SEC}"
+echo "Beginning tests"
+
 cargo test --test test_single_node_is_alive -- ${TEST_ARGS} && \
     cargo test --test test_single_node_basic_operations -- ${TEST_ARGS} && \
     cargo test --test test_single_node_memory_capacity -- ${TEST_ARGS}

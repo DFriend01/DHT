@@ -35,6 +35,20 @@ impl FingerTable {
             size_factor
         );
 
+        let mut log_message: String = String::new();
+        log_message.push_str("FingerTable initial state (Start Position,Node Position,Node Address): ");
+        for i in 0..finger_node_positions.len() {
+            let start_position: &u32 = finger_start_positions.get(i).expect("finger_start_positions was expected to have all values to be non-empty");
+            let node_position: &u32 = finger_node_positions.get(i).expect("finger_node_positions was expected to have all values to be non-empty");
+            let node_address: &SocketAddr = finger_node_socket_addrs.get(i).expect("finger_node_socket_addrs was expected to have all values to be non-empty");
+            log_message.push_str(format!("({},{},{})", start_position, node_position, node_address.to_string()).as_str());
+
+            if i < finger_node_positions.len() - 1 {
+                log_message.push_str(", ");
+            }
+        }
+        log::info!("{}", log_message);
+
         Ok(FingerTable {
             finger_start_positions: finger_start_positions,
             finger_node_positions: finger_node_positions,

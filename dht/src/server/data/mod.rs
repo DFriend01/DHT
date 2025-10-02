@@ -201,21 +201,22 @@ impl Node {
             return reply;
         }
 
-        let key_belongs_to_this_node: bool = match self.finger_table.does_key_belong_to_this_node(key.clone()) {
-            Ok(result) => result,
+        let peer_address: SocketAddr = match self.finger_table.map_key_to_node(key.clone()) {
+            Ok(address) => address,
             Err(_) => {
-                log::debug!("PUT request unable to check if the key belongs to this node");
+                log::debug!("PUT request failed to map key to node");
                 reply.status = Status::InternalError as u32;
+                log::trace!("Exiting handle_put");
                 return reply;
             }
         };
 
-        if key_belongs_to_this_node {
+        if peer_address == self.server_address {
             log::debug!("Key belongs to this node, performing PUT request");
             reply.status = self.put_on_this_node(key, value);
         } else {
-            log:: debug!("Key belongs to another node, performing search...");
-            let peer_reply: Reply = match self.redirect_request(key, request) {
+            log::debug!("Key belongs to another node, performing search...");
+            let peer_reply: Reply = match self.redirect_request(request, peer_address) {
                 Ok(reply) => reply,
                 Err(_) => {
                     log::error!("Unable to redirect PUT request to peer");
@@ -231,14 +232,18 @@ impl Node {
     }
 
     fn put_on_this_node(&mut self, key: Vec<u8>, value: Vec<u8>) -> u32 {
+        log::trace!("Entering put_on_this_node");
+
         let key_value_mem_usage: u64 = (key.len() as u64) + (value.len() as u64);
         if self.data_store_mem_usage + key_value_mem_usage <= self.max_mem {
             log::debug!("PUT request Success (key size: {}, value size: {})", key.len(), value.len());
             self.data_store.insert(key, value);
             self.data_store_mem_usage += key_value_mem_usage;
+            log::trace!("Exiting put_on_this_node");
             Status::Success as u32
         } else {
             log::info!("PUT request unsuccessful, hit memory limit");
+            log::trace!("Exiting put_on_this_node");
             Status::OutOfMemory as u32
         }
     }
@@ -426,11 +431,12 @@ impl Node {
         Ok(())
     }
 
-    fn redirect_request(&self, key: Vec<u8>, request: Request) -> Result<Reply> {
-        let peer_address: SocketAddr = self.finger_table.map_key_to_node(key)?;
+    fn redirect_request(&self, request: Request, peer_address: SocketAddr) -> Result<Reply> {
+        log::trace!("Entering redirect_request");
         let proto_socket: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
         let proto_interface: ProtoInterface = ProtoInterface::new(proto_socket)?;
         let (reply_msg, _) = proto_interface.send_and_recv(request, peer_address)?;
+        log::trace!("Exiting redirect_request");
         extract_reply(&reply_msg)
     }
 

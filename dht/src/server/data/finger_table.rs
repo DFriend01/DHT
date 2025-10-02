@@ -96,13 +96,6 @@ impl FingerTable {
         self.finger_node_socket_addrs[finger_index]
     }
 
-    pub fn does_key_belong_to_this_node(&self, key: Vec<u8>) -> Result<bool> {
-        let key_position: u32 = self.calculate_key_position(key)?;
-        let node_position: u32 = self.get_position_of_this_node();
-        log::debug!("Comparing Key Position: {}, Node Position: {}", key_position, node_position);
-        Ok(key_position == node_position)
-    }
-
     // Private functions
     fn map_node_to_peer_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
 

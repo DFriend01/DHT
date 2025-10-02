@@ -58,8 +58,8 @@ impl FingerTable {
 
     // Public functions
     pub fn map_key_to_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
-        let key_hash: u32 = self.calculate_key_hash(key.clone())?;
-        if key_hash == self.get_position_of_this_node() {
+        let key_position: u32 = self.calculate_key_position(key.clone())?;
+        if key_position == self.get_position_of_this_node() {
             Ok(self.get_addr_of_this_node())
         } else {
             self.map_node_to_peer_node(key.clone())
@@ -67,7 +67,7 @@ impl FingerTable {
     }
 
     pub fn find_nearest_finger(&self, key: Vec<u8>) -> Result<usize> {
-        let key_position: u32 = self.calculate_key_hash(key)?;
+        let key_position: u32 = self.calculate_key_position(key)?;
         for finger_index in (0..self.get_finger_table_size()).rev() {
             if self.is_key_in_finger_interval(key_position, finger_index) {
                 return Ok(finger_index)
@@ -97,19 +97,19 @@ impl FingerTable {
     }
 
     pub fn does_key_belong_to_this_node(&self, key: Vec<u8>) -> Result<bool> {
-        let key_hash: u32 = self.calculate_key_hash(key)?;
+        let key_position: u32 = self.calculate_key_position(key)?;
         let node_position: u32 = self.get_position_of_this_node();
-        log::debug!("Comparing Key Position: {}, Node Position: {}", key_hash, node_position);
-        Ok(key_hash == node_position)
+        log::debug!("Comparing Key Position: {}, Node Position: {}", key_position, node_position);
+        Ok(key_position == node_position)
     }
 
     // Private functions
     fn map_node_to_peer_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
 
         // Check the finger table in this node first
-        let key_hash: u32 = self.calculate_key_hash(key.clone())?;
+        let key_position: u32 = self.calculate_key_position(key.clone())?;
         let index_of_nearest_finger: usize = self.find_nearest_finger(key.clone())?;
-        if key_hash == self.get_node_position(index_of_nearest_finger) {
+        if key_position == self.get_node_position(index_of_nearest_finger) {
             return Ok(self.get_node_address(index_of_nearest_finger))
         }
 
@@ -147,7 +147,7 @@ impl FingerTable {
                 Err(_) => break
             };
 
-            if results.node_position == key_hash {
+            if results.node_position == key_position {
                 return Ok(nearest_node_addr)
             } else {
                 next_peer_addr = nearest_node_addr;
@@ -207,7 +207,7 @@ impl FingerTable {
         self.finger_start_positions.len()
     }
 
-    fn calculate_key_hash(&self, key: impl AsRef<[u8]>) -> Result<u32> {
+    fn calculate_key_position(&self, key: impl AsRef<[u8]>) -> Result<u32> {
         let hash: [u8; 16] = match util::hash_md5(key) {
             Ok(hash) => hash,
             Err(_e) => {

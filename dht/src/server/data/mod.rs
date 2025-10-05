@@ -10,7 +10,7 @@ use protobuf::{Message, MessageField};
 
 use crate::comm::ProtoInterface;
 use crate::comm::proto::{extract_reply, extract_request, Operation, Status};
-use crate::comm::protogen::api::{UDPMessage, Request, Reply, NearestNodeSearchResults};
+use crate::comm::protogen::api::{UDPMessage, Request, Reply, NearestPrecedingNodeSearchResults};
 use crate::server::data::finger_table::FingerTable;
 
 mod finger_table;
@@ -159,7 +159,7 @@ impl Node {
             Ok(Operation::Ping) => self.handle_ping(),
             Ok(Operation::Shutdown) => self.handle_shutdown(),
             Ok(Operation::GetPid) => self.handle_getpid(),
-            Ok(Operation::GetNearestNodeToKey) => self.handle_get_nearest_node_to_key(request),
+            Ok(Operation::GetNearestPrecedingNodeToKey) => self.handle_get_nearest_preceding_node_to_key(request),
             _ => self.handle_undefined_operation(request.operation),
         };
 
@@ -358,20 +358,20 @@ impl Node {
         reply
     }
 
-    fn handle_get_nearest_node_to_key(&self, request: Request) -> Reply {
+    fn handle_get_nearest_preceding_node_to_key(&self, request: Request) -> Reply {
         let mut reply: Reply = Reply::new();
 
         let key: Vec<u8> = match request.key {
             Some(key) => key,
             None => {
-                log::debug!("GETNEARESTNODETOKEY request MissingKey");
+                log::debug!("GETNEARESTPRECEDINGNODETOKEY request MissingKey");
                 reply.status = Status::MissingKey as u32;
-                log::trace!("Exiting handle_get_nearest_node_to_key");
+                log::trace!("Exiting handle_get_nearest_preceding_node_to_key");
                 return reply;
             }
         };
 
-        let nearest_finger_index: usize = match self.finger_table.find_nearest_finger(key) {
+        let nearest_preceding_finger_index: usize = match self.finger_table.find_nearest_preceding_finger(key) {
             Ok(finger_index) => finger_index,
             Err(e) => {
                 log::error!("Unable to find nearest finger to key: {}", e);
@@ -380,12 +380,12 @@ impl Node {
             }
         };
 
-        let nearest_node_position: u32 = self.finger_table.get_node_position(nearest_finger_index);
-        let nearest_node_address: SocketAddr = self.finger_table.get_node_address(nearest_finger_index);
+        let nearest_preceding_node_position: u32 = self.finger_table.get_node_position(nearest_preceding_finger_index);
+        let nearest_preceding_node_address: SocketAddr = self.finger_table.get_node_address(nearest_preceding_finger_index);
 
-        let mut search_results: NearestNodeSearchResults = NearestNodeSearchResults::new();
-        search_results.node_position = nearest_node_position;
-        search_results.node_address = nearest_node_address.to_string();
+        let mut search_results: NearestPrecedingNodeSearchResults = NearestPrecedingNodeSearchResults::new();
+        search_results.node_position = nearest_preceding_node_position;
+        search_results.node_address = nearest_preceding_node_address.to_string();
 
         reply.status = Status::Success as u32;
         reply.search_results = MessageField::some(search_results);

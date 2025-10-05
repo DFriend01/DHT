@@ -16,10 +16,10 @@ message Reply {
     uint32 status = 1;
     optional bytes value = 2;
     optional uint32 pid = 3;
-    optional NearestNodeSearchResults search_results = 4;
+    optional NearestPrecedingNodeSearchResults search_results = 4;
 }
 
-message NearestNodeSearchResults {
+message NearestPrecedingNodeSearchResults {
     string node_address = 1;
     uint32 node_position = 2;
 }

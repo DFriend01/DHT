@@ -3,7 +3,7 @@ use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 use log;
 
 use crate::comm::proto::{extract_reply, Operation, Status};
-use crate::comm::protogen::api::{NearestNodeSearchResults, Request, Reply};
+use crate::comm::protogen::api::{NearestPrecedingNodeSearchResults, Request, Reply};
 use crate::comm::ProtoInterface;
 use crate::util;
 
@@ -14,7 +14,6 @@ pub struct FingerTable {
 }
 
 /* TODO Functions to implement for later iterations:
-    - Function to find the node predecessor
     - Function(s) to update the finger table based on node joins and leaves
 */
 
@@ -58,7 +57,7 @@ impl FingerTable {
 
     // Public functions
     pub fn find_successor_of_key(&self, key: Vec<u8>) -> Result<SocketAddr> {
-        predecessor_address: SocketAddr = self.find_predecessor_of_key(key)?;
+        let predecessor_address: SocketAddr = self.find_predecessor_of_key(key)?;
 
         // TODO ask predecessor for its successor
     }
@@ -112,7 +111,7 @@ impl FingerTable {
     fn find_predecessor_of_key(&self, key: Vec<u8>) -> Result<SocketAddr> {
         let key_position: u32 = self.calculate_key_position(key.clone())?;
         let node_position: u32 = self.get_position_of_this_node();
-        let node_successor_position: u32 = self.get_successor_position();
+        let node_successor_position: u32 = self.get_successor_position_of_this_node();
 
         let max_position_plus_one: u32 = self.get_max_position() + 1;
         const NODE_INCLUSIVE: bool = false;
@@ -163,7 +162,7 @@ impl FingerTable {
         let mut next_peer_addr: SocketAddr = self.get_node_address(index_of_nearest_preceding_finger);
         for hop in 0..max_node_hops {
             let mut search_request: Request = Request::new();
-            search_request.operation = Operation::GetNearestNodeToKey as u32;
+            search_request.operation = Operation::GetNearestPrecedingNodeToKey as u32;
             search_request.key = Some(key.clone());
 
             log::debug!("Hop {} in chord to map key to node, contacting node with address {}", hop + 1, next_peer_addr);
@@ -174,20 +173,33 @@ impl FingerTable {
                 break;
             }
 
-            let results: NearestNodeSearchResults = match reply.search_results.into_option() {
+            let results: NearestPrecedingNodeSearchResults = match reply.search_results.into_option() {
                 Some(search_results) => search_results,
                 None => break
             };
 
-            let nearest_node_addr: SocketAddr = match results.node_address.parse() {
+            let nearest_preceding_node_position: u32 = results.node_position;
+            let nearest_preceding_node_addr: SocketAddr = match results.node_address.parse() {
                 Ok(address) => address,
                 Err(_) => break
             };
 
-            if results.node_position == key_position {
-                return Ok(nearest_node_addr)
+            // TODO get successor of finger
+            let nearest_preceding_node_successor_position: u32 = 0;
+
+            let is_key_predecessor_found: bool = util::is_in_wraparound_range(
+                nearest_preceding_node_position,
+                nearest_preceding_node_successor_position,
+                key_position,
+                max_position_plus_one,
+                NODE_INCLUSIVE,
+                NODE_SUCCESSOR_INCLUSIVE
+            );
+
+            if is_key_predecessor_found {
+                return Ok(nearest_preceding_node_addr)
             } else {
-                next_peer_addr = nearest_node_addr;
+                next_peer_addr = nearest_preceding_node_addr;
             }
         }
 
@@ -235,7 +247,7 @@ impl FingerTable {
         self.finger_start_positions[finger_index]
     }
 
-    fn get_successor_position(&self) -> u32 {
+    fn get_successor_position_of_this_node(&self) -> u32 {
         const SECOND_FINGER: usize = 1;
         self.get_node_position(SECOND_FINGER)
     }

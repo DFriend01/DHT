@@ -136,6 +136,7 @@ impl FingerTable {
             NODE_INCLUSIVE,
             NODE_SUCCESSOR_INCLUSIVE
         );
+
         if key_belongs_to_this_node {
             return Ok(self.get_addr_of_this_node());
         }
@@ -143,9 +144,8 @@ impl FingerTable {
         // Does the key belong to one of the fingers on this node?
         let index_of_nearest_preceding_finger: usize = self.find_nearest_preceding_finger(key.clone())?;
         let finger_node_position: u32 = self.get_node_position(index_of_nearest_preceding_finger);
-
-        // TODO get successor of finger
-        let finger_node_successor_position: u32 = 0;
+        let finger_node_address: SocketAddr = self.get_node_address(index_of_nearest_preceding_finger);
+        let (finger_node_successor_position, _) = self.get_node_successor(finger_node_address)?;
 
         let key_belongs_to_finger_node: bool = util::is_in_wraparound_range(
             finger_node_position,
@@ -155,6 +155,7 @@ impl FingerTable {
             NODE_INCLUSIVE,
         NODE_SUCCESSOR_INCLUSIVE
         );
+
         if key_belongs_to_finger_node {
             return Ok(self.get_node_address(index_of_nearest_preceding_finger));
         }

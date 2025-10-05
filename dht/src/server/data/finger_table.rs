@@ -57,22 +57,34 @@ impl FingerTable {
     }
 
     // Public functions
-    pub fn map_key_to_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
-        let key_position: u32 = self.calculate_key_position(key.clone())?;
-        if key_position == self.get_position_of_this_node() {
-            Ok(self.get_addr_of_this_node())
-        } else {
-            self.map_node_to_peer_node(key.clone())
-        }
+    pub fn find_successor_of_key(&self, key: Vec<u8>) -> Result<SocketAddr> {
+        predecessor_address: SocketAddr = self.find_predecessor_of_key(key)?;
+
+        // TODO ask predecessor for its successor
     }
 
-    pub fn find_nearest_finger(&self, key: Vec<u8>) -> Result<usize> {
+    pub fn find_nearest_preceding_finger(&self, key: Vec<u8>) -> Result<usize> {
         let key_position: u32 = self.calculate_key_position(key)?;
+        let node_position: u32 = self.get_position_of_this_node();
+        const NODE_INCLUSIVE: bool = false;
+        const KEY_INCLUSIVE: bool = false;
+        let max_position_plus_one: u32 = self.get_max_position() + 1;
+
         for finger_index in (0..self.get_finger_table_size()).rev() {
-            if self.is_key_in_finger_interval(key_position, finger_index) {
-                return Ok(finger_index)
+            let finger_node_position: u32 = self.get_node_position(finger_index);
+            let is_finger_between_node_and_key: bool = util::is_in_wraparound_range(
+                node_position,
+                key_position,
+                finger_node_position,
+                max_position_plus_one,
+                NODE_INCLUSIVE,
+                KEY_INCLUSIVE
+            );
+            if is_finger_between_node_and_key {
+                return Ok(finger_index);
             }
         }
+
         Err(Error::new(ErrorKind::NotFound, "Nearest finger not found, but we should not be seeing this message..."))
     }
 
@@ -97,16 +109,48 @@ impl FingerTable {
     }
 
     // Private functions
-    fn map_node_to_peer_node(&self, key: Vec<u8>) -> Result<SocketAddr> {
-
-        // Check the finger table in this node first
+    fn find_predecessor_of_key(&self, key: Vec<u8>) -> Result<SocketAddr> {
         let key_position: u32 = self.calculate_key_position(key.clone())?;
-        let index_of_nearest_finger: usize = self.find_nearest_finger(key.clone())?;
-        if key_position == self.get_node_position(index_of_nearest_finger) {
-            return Ok(self.get_node_address(index_of_nearest_finger))
+        let node_position: u32 = self.get_position_of_this_node();
+        let node_successor_position: u32 = self.get_successor_position();
+
+        let max_position_plus_one: u32 = self.get_max_position() + 1;
+        const NODE_INCLUSIVE: bool = false;
+        const NODE_SUCCESSOR_INCLUSIVE: bool = true;
+
+        // Does the key already belong to this node?
+        let key_belongs_to_this_node: bool  = util::is_in_wraparound_range(
+            node_position,
+            node_successor_position,
+            key_position,
+            max_position_plus_one,
+            NODE_INCLUSIVE,
+            NODE_SUCCESSOR_INCLUSIVE
+        );
+        if key_belongs_to_this_node {
+            return Ok(self.get_addr_of_this_node());
         }
 
-        // Use the finger tables from other nodes to map the key.
+        // Does the key belong to one of the fingers on this node?
+        let index_of_nearest_preceding_finger: usize = self.find_nearest_preceding_finger(key.clone())?;
+        let finger_node_position: u32 = self.get_node_position(index_of_nearest_preceding_finger);
+
+        // TODO get successor of finger
+        let finger_node_successor_position: u32 = 0;
+
+        let key_belongs_to_finger_node: bool = util::is_in_wraparound_range(
+            finger_node_position,
+            finger_node_successor_position,
+            key_position,
+            max_position_plus_one,
+            NODE_INCLUSIVE,
+        NODE_SUCCESSOR_INCLUSIVE
+        );
+        if key_belongs_to_finger_node {
+            return Ok(self.get_node_address(index_of_nearest_preceding_finger));
+        }
+
+        // Search the finger tables from other nodes to map the key.
         // The most hops we would ever need to make in an N-node network is
         // O(log N). Since we do not always know the number of nodes,
         // we use the size of the chord: log(2 ^ finger_table_size) = finger_table_size
@@ -116,7 +160,7 @@ impl FingerTable {
         let socket: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
         let proto_interface: ProtoInterface = ProtoInterface::new(socket)?;
 
-        let mut next_peer_addr: SocketAddr = self.get_node_address(index_of_nearest_finger);
+        let mut next_peer_addr: SocketAddr = self.get_node_address(index_of_nearest_preceding_finger);
         for hop in 0..max_node_hops {
             let mut search_request: Request = Request::new();
             search_request.operation = Operation::GetNearestNodeToKey as u32;

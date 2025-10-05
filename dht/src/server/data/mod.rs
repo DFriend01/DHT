@@ -10,7 +10,7 @@ use protobuf::{Message, MessageField};
 
 use crate::comm::ProtoInterface;
 use crate::comm::proto::{extract_reply, extract_request, Operation, Status};
-use crate::comm::protogen::api::{UDPMessage, Request, Reply, NearestPrecedingNodeSearchResults};
+use crate::comm::protogen::api::{UDPMessage, Request, Reply, NodeInfo};
 use crate::server::data::finger_table::FingerTable;
 
 mod finger_table;
@@ -160,6 +160,7 @@ impl Node {
             Ok(Operation::Shutdown) => self.handle_shutdown(),
             Ok(Operation::GetPid) => self.handle_getpid(),
             Ok(Operation::GetNearestPrecedingNodeToKey) => self.handle_get_nearest_preceding_node_to_key(request),
+            Ok(Operation::GetSuccessor) => self.handle_get_successor(),
             _ => self.handle_undefined_operation(request.operation),
         };
 
@@ -201,7 +202,7 @@ impl Node {
             return reply;
         }
 
-        let peer_address: SocketAddr = match self.finger_table.map_key_to_node(key.clone()) {
+        let peer_address: SocketAddr = match self.finger_table.find_successor_of_key(key.clone()) {
             Ok(address) => address,
             Err(_) => {
                 log::debug!("PUT request failed to map key to node");
@@ -383,13 +384,28 @@ impl Node {
         let nearest_preceding_node_position: u32 = self.finger_table.get_node_position(nearest_preceding_finger_index);
         let nearest_preceding_node_address: SocketAddr = self.finger_table.get_node_address(nearest_preceding_finger_index);
 
-        let mut search_results: NearestPrecedingNodeSearchResults = NearestPrecedingNodeSearchResults::new();
+        let mut search_results: NodeInfo = NodeInfo::new();
         search_results.node_position = nearest_preceding_node_position;
         search_results.node_address = nearest_preceding_node_address.to_string();
 
         reply.status = Status::Success as u32;
-        reply.search_results = MessageField::some(search_results);
+        reply.node_info = MessageField::some(search_results);
 
+        reply
+    }
+
+    fn handle_get_successor(&self) -> Reply {
+        log::trace!("Entering handle_get_successor");
+
+        let mut successor_info: NodeInfo = NodeInfo::new();
+        successor_info.node_position = self.finger_table.get_successor_position_of_this_node();
+        successor_info.node_address = self.finger_table.get_successor_addr_of_this_node().to_string();
+
+        let mut reply: Reply = Reply::new();
+        reply.status = Status::Success as u32;
+        reply.node_info = MessageField::some(successor_info);
+
+        log::trace!("Exiting handle_get_successor");
         reply
     }
 

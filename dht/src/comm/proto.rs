@@ -18,7 +18,8 @@ pub enum Operation {
     Ping = 4,
     Shutdown = 5,
     GetPid = 6,
-    GetNearestPrecedingNodeToKey = 7
+    GetNearestPrecedingNodeToKey = 7,
+    GetSuccessor = 8
 }
 
 impl TryFrom<u32> for Operation {
@@ -34,6 +35,7 @@ impl TryFrom<u32> for Operation {
             5 => Ok(Operation::Shutdown),
             6 => Ok(Operation::GetPid),
             7 => Ok(Operation::GetNearestPrecedingNodeToKey),
+            8 => Ok(Operation::GetSuccessor),
             _ => Err(Error::new(ErrorKind::InvalidData, "Invalid operation")),
         }
     }

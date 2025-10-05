@@ -3,7 +3,7 @@ use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 use log;
 
 use crate::comm::proto::{extract_reply, Operation, Status};
-use crate::comm::protogen::api::{NearestPrecedingNodeSearchResults, Request, Reply};
+use crate::comm::protogen::api::{NodeInfo, Request, Reply};
 use crate::comm::ProtoInterface;
 use crate::util;
 
@@ -107,6 +107,16 @@ impl FingerTable {
         self.finger_node_socket_addrs[finger_index]
     }
 
+    pub fn get_successor_position_of_this_node(&self) -> u32 {
+        const SECOND_FINGER: usize = 1;
+        self.get_node_position(SECOND_FINGER)
+    }
+
+    pub fn get_successor_addr_of_this_node(&self) -> SocketAddr {
+        const SECOND_FINGER: usize = 1;
+        self.get_node_address(SECOND_FINGER)
+    }
+
     // Private functions
     fn find_predecessor_of_key(&self, key: Vec<u8>) -> Result<SocketAddr> {
         let key_position: u32 = self.calculate_key_position(key.clone())?;
@@ -173,7 +183,7 @@ impl FingerTable {
                 break;
             }
 
-            let results: NearestPrecedingNodeSearchResults = match reply.search_results.into_option() {
+            let results: NodeInfo = match reply.node_info.into_option() {
                 Some(search_results) => search_results,
                 None => break
             };
@@ -247,10 +257,7 @@ impl FingerTable {
         self.finger_start_positions[finger_index]
     }
 
-    fn get_successor_position_of_this_node(&self) -> u32 {
-        const SECOND_FINGER: usize = 1;
-        self.get_node_position(SECOND_FINGER)
-    }
+
 
     fn get_finger_table_size(&self) -> usize {
         self.finger_start_positions.len()

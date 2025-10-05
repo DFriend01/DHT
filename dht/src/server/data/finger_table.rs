@@ -1,5 +1,5 @@
 use std::io::{Result, Error, ErrorKind};
-use std::net::{SocketAddr, IpAddr, Ipv4Addr};
+use std::net::SocketAddr;
 use log;
 
 use crate::comm::proto::{extract_reply, Operation, Status};
@@ -58,8 +58,8 @@ impl FingerTable {
     // Public functions
     pub fn find_successor_of_key(&self, key: Vec<u8>) -> Result<SocketAddr> {
         let predecessor_address: SocketAddr = self.find_predecessor_of_key(key)?;
-
-        // TODO ask predecessor for its successor
+        let (_, successor_address) = self.get_node_successor(predecessor_address)?;
+        Ok(successor_address)
     }
 
     pub fn find_nearest_preceding_finger(&self, key: Vec<u8>) -> Result<usize> {
@@ -166,7 +166,7 @@ impl FingerTable {
         // as an upper bound.
         let max_node_hops: usize = self.get_finger_table_size();
 
-        let socket: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+        let socket: SocketAddr = util::get_randomly_available_socket();
         let proto_interface: ProtoInterface = ProtoInterface::new(socket)?;
 
         let mut next_peer_addr: SocketAddr = self.get_node_address(index_of_nearest_preceding_finger);
@@ -194,8 +194,10 @@ impl FingerTable {
                 Err(_) => break
             };
 
-            // TODO get successor of finger
-            let nearest_preceding_node_successor_position: u32 = 0;
+            let (nearest_preceding_node_successor_position, _) = match self.get_node_successor(nearest_preceding_node_addr) {
+                Ok((position, addr)) => (position, addr),
+                Err(_) => break
+            };
 
             let is_key_predecessor_found: bool = util::is_in_wraparound_range(
                 nearest_preceding_node_position,
@@ -214,6 +216,44 @@ impl FingerTable {
         }
 
         Err(Error::new(ErrorKind::NotFound, "Node not found for key"))
+    }
+
+    fn get_node_successor(&self, node_addr: SocketAddr) -> Result<(u32, SocketAddr)> {
+        let is_this_node: bool = node_addr == self.get_addr_of_this_node();
+        if is_this_node {
+            return Ok((self.get_successor_position_of_this_node(), self.get_successor_addr_of_this_node()));
+        }
+
+        let mut request: Request = Request::new();
+        request.operation = Operation::GetSuccessor as u32;
+
+        let socket: SocketAddr = util::get_randomly_available_socket();
+        let proto_interface: ProtoInterface = ProtoInterface::new(socket)?;
+
+        let (reply_msg, _server_socket) = proto_interface.send_and_recv(request, node_addr)?;
+        let reply: Reply = extract_reply(&reply_msg)?;
+
+        if reply.status != Status::Success as u32 {
+            return Err(Error::new(ErrorKind::Other, "GetSuccessor failed"));
+        }
+
+        let successor_info: NodeInfo = match reply.node_info.into_option() {
+            Some(info) => info,
+            None => {
+                return Err(Error::new(ErrorKind::Other, "GetSuccessor node information was empty!"));
+            }
+        };
+
+        let successor_position: u32 = successor_info.node_position;
+        let successor_address: SocketAddr = match successor_info.node_address.parse() {
+            Ok(address) => address,
+            Err(_) => {
+                return Err(Error::new(ErrorKind::InvalidData, "Unable to parse socket address"));
+            }
+        };
+
+        Ok((successor_position, successor_address))
+
     }
 
     fn is_key_in_finger_interval(&self, key_position: u32, finger_index: usize) -> bool {
@@ -256,8 +296,6 @@ impl FingerTable {
     fn get_start_position(&self, finger_index: usize) -> u32 {
         self.finger_start_positions[finger_index]
     }
-
-
 
     fn get_finger_table_size(&self) -> usize {
         self.finger_start_positions.len()

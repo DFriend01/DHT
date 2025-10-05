@@ -1,7 +1,7 @@
 use std::array::TryFromSliceError;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, IpAddr, Ipv4Addr};
 use std::path::Path;
 
 use md5::{Md5, Digest};
@@ -68,6 +68,10 @@ pub fn is_in_wraparound_range(
     } else {
         c > a || c < b
     }
+}
+
+pub fn get_randomly_available_socket() -> SocketAddr {
+    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0)
 }
 
 #[cfg(test)]
